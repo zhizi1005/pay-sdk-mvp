@@ -226,6 +226,21 @@ body.page-confirm {
   cursor: pointer;
 }
 
+.panel textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 6px 0 8px;
+  padding: 8px 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  resize: vertical;
+  min-height: 140px;
+}
+
 .demo-actions {
   display: flex;
   flex-wrap: wrap;

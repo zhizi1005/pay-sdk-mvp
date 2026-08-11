@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mock 确认 — Pay SDK Demo</title>
+    <link rel="stylesheet" href="./common.css" />
+  </head>
+  <body class="page-confirm">
+    <p class="meta">
+      <a href="./index.html">创建订单</a> · <a href="./confirm.html">确认订单</a> ·
+      <a href="./confirm_mock.html">Mock 确认</a> · <a href="./result.html">订单结果</a>
+    </p>
+    <h1>Mock 确认（跳过 Google Pay）</h1>
+    <p class="meta">
+      从 session 读取创建订单 data；不挂 Google Pay。粘贴真实
+      <code>POST /payment-hub/alchemy-pay</code> 完整返回 JSON，确认后直接走支付结果后的 onAction /
+      Bridge 抽屉 / iframe / 轮询。右下角 vConsole 可查看日志。
+    </p>
+
+    <div id="order-summary" class="panel">加载订单详情…</div>
+
+    <p id="status">准备中…</p>
+    <div class="trace-row">
+      <span class="label">traceId</span>
+      <code id="trace-id">—</code>
+      <button type="button" id="trace-copy">复制</button>
+    </div>
+
+    <details class="json-fold" open>
+      <summary class="section-title">Mock 支付接口返回</summary>
+      <p class="meta">
+        粘贴浏览器 Network 中支付接口的<strong>完整 JSON 字符串</strong>（含
+        <code>returnCode</code>、<code>data</code> 等）。点击确认后 mock「拿到支付结果之后」的逻辑。
+      </p>
+      <div class="panel">
+        <label class="block" for="mock-pay-json">alchemy-pay 返回 JSON</label>
+        <textarea
+          id="mock-pay-json"
+          rows="14"
+          spellcheck="false"
+          placeholder='{"success":true,"returnCode":"0000","returnMsg":"SUCCESS","data":{"webUrl":"https://..."},"traceId":"..."}'
+        ></textarea>
+      </div>
+    </details>
+
+    <details class="json-fold">
+      <summary class="section-title">订单详情 JSON</summary>
+      <pre id="detail-json">—</pre>
+    </details>
+
+    <details class="json-fold">
+      <summary class="section-title">onAction / 二级页</summary>
+      <p class="meta">
+        App：webUrl/s3ds → openPayWebUrl；threeDS → openPayChallenge；threeDSMethod →
+        openPayMethod。终态 closePayWebUrl。壳页
+        <a href="./3ds-challenge.html">3ds-challenge.html</a> /
+        <a href="./3ds-method.html">3ds-method.html</a>。
+      </p>
+      <p class="meta">
+        <strong>当前打开的二级页：</strong>
+        <code id="opened-web-url" style="word-break: break-all">—</code>
+      </p>
+      <pre id="action">—</pre>
+    </details>
+
+    <details class="json-fold">
+      <summary class="section-title">输出</summary>
+      <pre id="output">—</pre>
+    </details>
+
+    <div class="confirm-footer">
+      <button type="button" id="custom-pay-btn">确认 Mock 支付响应</button>
+    </div>
+
+    <script src="./vendor/vconsole.min.js"></script>
+    <script src="./demo-vconsole.js"></script>
+    <script src="./pay-sdk.js"></script>
+    <script src="./config.js"></script>
+    <script src="./signed-api.js"></script>
+    <script src="./demo-session.js"></script>
+    <script src="./demo-ui.js"></script>
+    <script>
+      const ui = window.PaySdkDemoUI
+      const signedApi = window.PaySdkDemoSignedApi
+      const session = window.PaySdkDemoSession
+
+      const statusEl = document.getElementById('status')
+      const summaryEl = document.getElementById('order-summary')
+      const detailJsonEl = document.getElementById('detail-json')
+      const actionEl = document.getElementById('action')
+      const openedWebUrlEl = document.getElementById('opened-web-url')
+      const outputEl = document.getElementById('output')
+      const mockPayBtn = document.getElementById('custom-pay-btn')
+      const mockPayJsonEl = document.getElementById('mock-pay-json')
+
+      let sdk = null
+      let lastOrderDetail = null
+      let navigatedToResult = false
+      let pollGeneration = 0
+      let environment = 'TEST'
+      let actionMode = 'callback'
+      let orderRequest = {}
+      let orderResponse = null
+      let redirectUrl = ''
+      let callbackUrl = ''
+      let bridge = null
+      let hasBridge = false
+      let challengeShell = ''
+      let methodShell = ''
+
+      const STUB_PAYMENT_SCRIPT = {
+        apiVersion: 2,
+        apiVersionMinor: 0,
+        merchantInfo: { merchantId: 'mock', merchantName: 'Mock' },
+        transactionInfo: {
+          totalPrice: '1.00',
+          totalPriceStatus: 'FINAL',
+          currencyCode: 'USD',
+          countryCode: 'US'
+        },
+        allowedPaymentMethods: [
+          {
+            type: 'CARD',
+            parameters: {
+              allowedAuthMethods: ['PAN_ONLY', 'CRYPTOGRAM_3DS'],
+              allowedCardNetworks: ['MASTERCARD', 'VISA']
+            },
+            tokenizationSpecification: {
+              type: 'PAYMENT_GATEWAY',
+              parameters: { gateway: 'unlimint', gatewayMerchantId: 'mock' }
+            }
+          }
+        ]
+      }
+
+      ui.bindTraceCopy()
+
+      function setStatus(text, highlight) {
+        statusEl.textContent = text
+        if (highlight) statusEl.classList.add('status-highlight')
+        else statusEl.classList.remove('status-highlight')
+      }
+
+      function goResult(payload) {
+        if (navigatedToResult) return
+        navigatedToResult = true
+        pollGeneration += 1
+        session.setResult(payload)
+        location.href = './result.html'
+      }
+
+      function unwrapApiPayload(parsed) {
+        if (
+          parsed &&
+          typeof parsed === 'object' &&
+          parsed.data != null &&
+          typeof parsed.data === 'object'
+        ) {
+          return { envelope: parsed, data: parsed.data }
+        }
+        return { envelope: null, data: parsed }
+      }
+
+      function ensureOrderForSdk(order) {
+        const next = Object.assign({}, order)
+        if (!next.paymentScript) next.paymentScript = STUB_PAYMENT_SCRIPT
+        if (!next.method) next.method = 'googlePay'
+        return next
+      }
+
+      function canOpenPayWebUrl() {
+        return !!(bridge && typeof bridge.openPayWebUrl === 'function')
+      }
+      function canOpenPayChallenge() {
+        return !!(bridge && typeof bridge.openPayChallenge === 'function')
+      }
+      function canOpenPayMethod() {
+        return !!(bridge && typeof bridge.openPayMethod === 'function')
+      }
+      function closePayDrawer() {
+        if (bridge && typeof bridge.closePayWebUrl === 'function') {
+          bridge.closePayWebUrl()
+        }
+      }
+
+      function browserOpenAction(action) {
+        if (actionMode !== 'callback') return
+        if (!sdk) return
+        if (confirm('收到二次动作 ' + action.type + '，是否 sdk.openAction？（浏览器 Demo）')) {
+          sdk.openAction(action)
+        }
+      }
+
+      function maybeGoResult(source, result, orderPatch) {
+        if (navigatedToResult) return
+        const order = Object.assign({}, lastOrderDetail || {}, orderPatch || {})
+        const orderState = order.orderState
+        if (orderState == null || orderState === '') return
+        const isPaySettle =
+          source === 'onSuccess' || source === 'onComplete' || source === 'mockPay'
+        const allowPendingLeave = isPaySettle && result && result.order == null
+        if (Number(orderState) === 1 && !allowPendingLeave) return
+        closePayDrawer()
+        if (openedWebUrlEl) {
+          openedWebUrlEl.textContent = '(已 closePayWebUrl) ' + (openedWebUrlEl.textContent || '')
+        }
+        setStatus(
+          'Payment status: ' + orderState + ' · ' + session.orderStateLabel(orderState),
+          true
+        )
+        goResult({
+          source: source,
+          result: result != null ? result : { order: order },
+          orderDetail: order,
+          orderState: orderState,
+          environment: environment,
+          token: orderResponse.token,
+          orderRequest: orderRequest
+        })
+      }
+
+      function handleAction(action) {
+        console.log('[demo-mock] onAction', action, {
+          actionMode: actionMode,
+          hasBridge: hasBridge
+        })
+        actionEl.textContent = JSON.stringify(action, null, 2)
+
+        if (action.type === 'webUrl' || action.type === 's3ds') {
+          if (openedWebUrlEl) openedWebUrlEl.textContent = action.url || '—'
+          if (canOpenPayWebUrl()) {
+            setStatus(
+              'onAction ' +
+                action.type +
+                ' → Bridge 二级页（原页继续 poll；终态 closePayWebUrl）: ' +
+                (action.url || ''),
+              false
+            )
+            bridge.openPayWebUrl(action.url, redirectUrl, callbackUrl)
+            return 'opened'
+          }
+          if (actionMode === 'auto') {
+            setStatus(
+              'onAction ' +
+                action.type +
+                ' → SDK auto 整页打开（对齐收银台；不再 poll）: ' +
+                (action.url || ''),
+              false
+            )
+            if (sdk) sdk.openAction(action)
+            return 'navigated'
+          }
+          setStatus('onAction ' + action.type + ' → 浏览器 callback，可手动 openAction', false)
+          browserOpenAction(action)
+          return 'deferred'
+        }
+
+        if (action.type === 'threeDS') {
+          if (openedWebUrlEl) openedWebUrlEl.textContent = challengeShell
+          if (canOpenPayChallenge()) {
+            setStatus(
+              'onAction threeDS → openPayChallenge（原页 poll；终态 closePayWebUrl）',
+              false
+            )
+            bridge.openPayChallenge(
+              challengeShell,
+              JSON.stringify({
+                MD: action.MD,
+                JWT: action.JWT,
+                action: action.action
+              })
+            )
+            return 'opened'
+          }
+          if (actionMode === 'auto') {
+            setStatus('onAction threeDS → SDK auto 页内 iframe + 继续 poll', false)
+            if (sdk) sdk.openAction(action)
+            return 'opened'
+          }
+          setStatus('onAction threeDS → 浏览器 callback，可手动 openAction', false)
+          browserOpenAction(action)
+          return 'deferred'
+        }
+
+        if (action.type === 'threeDSMethod') {
+          if (openedWebUrlEl) openedWebUrlEl.textContent = methodShell
+          if (canOpenPayMethod()) {
+            setStatus(
+              'onAction threeDSMethod → openPayMethod（原页 poll；终态 closePayWebUrl）',
+              false
+            )
+            bridge.openPayMethod(
+              methodShell,
+              JSON.stringify({
+                threeDSMethodData: action.threeDSMethodData,
+                methodUrl: action.methodUrl
+              })
+            )
+            return 'opened'
+          }
+          if (actionMode === 'auto') {
+            setStatus('onAction threeDSMethod → SDK auto 隐藏 iframe + 继续 poll', false)
+            if (sdk) sdk.openAction(action)
+            return 'opened'
+          }
+          setStatus('onAction threeDSMethod → 浏览器 callback，可手动 openAction', false)
+          browserOpenAction(action)
+          return 'deferred'
+        }
+
+        return 'deferred'
+      }
+
+      function delay(ms) {
+        return new Promise(function (resolve) {
+          setTimeout(resolve, ms)
+        })
+      }
+
+      async function pollUntilTerminal(paymentResponse) {
+        const generation = ++pollGeneration
+        const intervalMs = 2000
+        const timeoutMs = 300000
+        const startedAt = Date.now()
+        let lastS3dsUrl = ''
+        setStatus('Mock 二次动作后轮询订单详情…', false)
+
+        while (!navigatedToResult && generation === pollGeneration) {
+          if (Date.now() - startedAt > timeoutMs) {
+            setStatus('轮询超时', true)
+            goResult({
+              source: 'mockPollTimeout',
+              result: {
+                message: 'Payment status polling timed out',
+                paymentResponse: paymentResponse
+              },
+              orderDetail: lastOrderDetail,
+              orderState: lastOrderDetail && lastOrderDetail.orderState,
+              environment: environment,
+              token: orderResponse.token,
+              orderRequest: orderRequest
+            })
+            return
+          }
+
+          try {
+            const detailResult = await signedApi.queryOrder({
+              environment: environment,
+              token: orderResponse.token
+            })
+            if (navigatedToResult || generation !== pollGeneration) return
+            const current = detailResult.data || {}
+            lastOrderDetail = Object.assign({}, lastOrderDetail || {}, current)
+            session.renderOrderSummary(summaryEl, {
+              detail: lastOrderDetail,
+              orderRequest: orderRequest
+            })
+            detailJsonEl.textContent = JSON.stringify(
+              detailResult.envelope || detailResult.data,
+              null,
+              2
+            )
+            ui.showTraceId(detailResult.traceId)
+            setStatus(
+              'Payment status: ' +
+                current.orderState +
+                (current.s3dsUrl ? ' · s3dsUrl' : '') +
+                ' · ' +
+                session.orderStateLabel(current.orderState),
+              false
+            )
+
+            if (current.s3dsUrl && current.s3dsUrl !== lastS3dsUrl) {
+              lastS3dsUrl = current.s3dsUrl
+              const s3dsAction =
+                typeof PaySdk.describeS3ds === 'function'
+                  ? PaySdk.describeS3ds(current.s3dsUrl)
+                  : { type: 's3ds', url: current.s3dsUrl, s3dsUrl: current.s3dsUrl }
+              const outcome = handleAction(s3dsAction)
+              if (outcome === 'navigated') return
+            }
+
+            maybeGoResult('onStatusChange', { order: current }, current)
+            if (navigatedToResult) return
+
+            const state = Number(current.orderState)
+            if (state === 1 && current.s3dsComplete !== true) {
+              await delay(intervalMs)
+              continue
+            }
+            // Terminal but maybeGoResult did not leave (missing fields) — still stop
+            if (state !== 1 || current.s3dsComplete === true) {
+              maybeGoResult(
+                'mockPay',
+                { order: current, paymentResponse: paymentResponse },
+                current
+              )
+              return
+            }
+          } catch (err) {
+            console.error('[demo-mock] poll failed', err)
+            setStatus('轮询失败：' + (err && err.message ? err.message : err), false)
+            ui.showTraceId(err && err.traceId)
+            await delay(intervalMs)
+          }
+        }
+      }
+
+      function applyMockPayResponse() {
+        if (!orderResponse || !orderResponse.token) {
+          setStatus('无有效会话，请先从 index 进入 Mock', false)
+          return
+        }
+        const raw = String(mockPayJsonEl.value || '').trim()
+        if (!raw) {
+          setStatus('请粘贴支付接口返回的完整 JSON', false)
+          return
+        }
+
+        let parsed
+        try {
+          parsed = JSON.parse(raw)
+        } catch (err) {
+          setStatus('JSON 解析失败：' + (err && err.message ? err.message : err), false)
+          return
+        }
+
+        const unwrapped = unwrapApiPayload(parsed)
+        const envelope = unwrapped.envelope
+        const data = unwrapped.data
+        if (envelope && envelope.traceId) ui.showTraceId(envelope.traceId)
+        outputEl.textContent = JSON.stringify(envelope || data, null, 2)
+
+        if (envelope && envelope.returnCode != null && String(envelope.returnCode) !== '0000') {
+          closePayDrawer()
+          setStatus('Pay failed：' + (envelope.returnMsg || envelope.returnCode), true)
+          goResult({
+            source: 'onError',
+            result: {
+              message: envelope.returnMsg || 'pay failed',
+              returnCode: envelope.returnCode,
+              traceId: envelope.traceId,
+              order: lastOrderDetail || { orderNo: orderResponse.orderNo }
+            },
+            orderDetail: lastOrderDetail,
+            orderState: lastOrderDetail && lastOrderDetail.orderState,
+            environment: environment,
+            token: orderResponse.token,
+            orderRequest: orderRequest
+          })
+          return
+        }
+
+        if (!data || typeof data !== 'object') {
+          setStatus('支付 JSON 缺少有效 data', false)
+          return
+        }
+
+        let action = null
+        try {
+          action = PaySdk.describePayResponse(data)
+        } catch (err) {
+          setStatus('解析二次动作失败：' + (err && err.message ? err.message : err), true)
+          return
+        }
+
+        if (!action) {
+          setStatus('无二次动作，视为支付成功', true)
+          goResult({
+            source: 'onSuccess',
+            result: { paymentResponse: data, order: lastOrderDetail },
+            orderDetail: lastOrderDetail,
+            orderState: lastOrderDetail && lastOrderDetail.orderState,
+            environment: environment,
+            token: orderResponse.token,
+            orderRequest: orderRequest
+          })
+          return
+        }
+
+        const outcome = handleAction(action)
+        if (outcome === 'navigated') return
+        void pollUntilTerminal(data)
+      }
+
+      async function boot() {
+        const flow = session.getFlow()
+        if (!flow || !flow.createOrderResponse || !flow.createOrderResponse.token) {
+          summaryEl.textContent = '缺少创建订单会话，请先在创建订单页粘贴创建订单返回并进入 Mock。'
+          setStatus('无有效会话', false)
+          mockPayBtn.disabled = true
+          return
+        }
+        if (!flow.createOrderResponse.orderNo) {
+          summaryEl.textContent = '会话缺少 orderNo。'
+          setStatus('无有效会话', false)
+          mockPayBtn.disabled = true
+          return
+        }
+
+        environment = flow.environment || 'TEST'
+        const requestedActionMode = flow.actionMode || 'callback'
+        orderRequest = flow.orderRequest || {}
+        orderResponse = flow.createOrderResponse
+        redirectUrl = orderRequest.redirectUrl || ''
+        callbackUrl = orderRequest.callbackUrl || ''
+
+        bridge = window.NativeBridge
+        hasBridge = !!(
+          bridge &&
+          (typeof bridge.openPayWebUrl === 'function' ||
+            typeof bridge.openPayChallenge === 'function' ||
+            typeof bridge.openPayMethod === 'function')
+        )
+        actionMode = hasBridge ? 'callback' : requestedActionMode
+        challengeShell = new URL('./3ds-challenge.html', location.href).href
+        methodShell = new URL('./3ds-method.html', location.href).href
+
+        setStatus('查询订单详情…', false)
+        try {
+          const detailResult = await signedApi.queryOrder({
+            environment: environment,
+            token: orderResponse.token
+          })
+          lastOrderDetail = detailResult.data
+          detailJsonEl.textContent = JSON.stringify(
+            detailResult.envelope || detailResult.data,
+            null,
+            2
+          )
+          session.renderOrderSummary(summaryEl, {
+            detail: lastOrderDetail,
+            orderRequest: orderRequest
+          })
+          ui.showTraceId(detailResult.traceId)
+          maybeGoResult('orderDetail', detailResult.data, lastOrderDetail)
+          if (navigatedToResult) return
+        } catch (err) {
+          console.error('[demo-mock] order detail failed', err)
+          lastOrderDetail = null
+          detailJsonEl.textContent = JSON.stringify(
+            (err && err.envelope) || { message: String(err && err.message) },
+            null,
+            2
+          )
+          session.renderOrderSummary(summaryEl, {
+            detail: {
+              orderNo: orderResponse.orderNo,
+              merchantOrderNo: orderRequest.merchantOrderNo
+            },
+            orderRequest: orderRequest
+          })
+          setStatus('订单详情失败：' + (err.message || err) + '，仍可 Mock 支付响应', false)
+          ui.showTraceId(err && err.traceId)
+        }
+
+        try {
+          sdk = PaySdk.init({
+            environment: environment,
+            actionMode: actionMode,
+            order: ensureOrderForSdk(orderResponse),
+            api: {
+              pollIntervalMs: 2000,
+              pollTimeoutMs: 300000
+            },
+            onAction: function () {},
+            onError: function (error) {
+              console.log('[demo-mock] sdk onError', error)
+            }
+          })
+        } catch (err) {
+          console.error('[demo-mock] PaySdk.init failed', err)
+          setStatus('SDK init 失败（openAction 可能不可用）：' + (err.message || err), false)
+          sdk = null
+        }
+
+        if (hasBridge && requestedActionMode === 'auto') {
+          console.warn('[demo-mock] NativeBridge 存在：已强制 actionMode=callback，避免 auto 双开')
+        }
+        setStatus(
+          '就绪：粘贴支付返回 JSON 后确认（actionMode=' +
+            actionMode +
+            (hasBridge ? ' · Bridge' : ' · 纯浏览器') +
+            '）',
+          false
+        )
+        mockPayBtn.disabled = false
+      }
+
+      mockPayBtn.addEventListener('click', function () {
+        applyMockPayResponse()
+      })
+
+      void boot()
+    </script>
+  </body>
+</html>

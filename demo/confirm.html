@@ -178,15 +178,18 @@
 
         /**
          * Align ramp-vue: leave confirm when orderState != PENDING(1).
-         * Exception: no secondary action finish (result.order missing, e.g. only tradeNo)
-         * → allow leave even while still PENDING (align handleAlchemyPayResponse else → getRedirectUrl).
+         * Exception (pay settle only): onSuccess/onComplete with result.order missing
+         * (e.g. only tradeNo) → allow leave even while still PENDING
+         * (align handleAlchemyPayResponse else → getRedirectUrl).
+         * orderDetail / onStatusChange must not use this exception.
          */
         function maybeGoResult(source, result, orderPatch) {
           if (navigatedToResult) return
           const order = Object.assign({}, lastOrderDetail || {}, orderPatch || {})
           const orderState = order.orderState
           if (orderState == null || orderState === '') return
-          const allowPendingLeave = result && result.order == null
+          const isPaySettle = source === 'onSuccess' || source === 'onComplete'
+          const allowPendingLeave = isPaySettle && result && result.order == null
           if (Number(orderState) === 1 && !allowPendingLeave) return
           closePayDrawer()
           if (openedWebUrlEl) {

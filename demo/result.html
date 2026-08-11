@@ -12,7 +12,10 @@
       <a href="./result.html">订单结果</a>
     </p>
     <h1>订单结果</h1>
-    <p class="meta">展示支付终态订单信息。右下角 vConsole 可查看接口日志。</p>
+    <p class="meta">
+      展示支付终态订单信息；若仍为 PENDING(1) 会每 2s 轮询查单直到非 1。右下角 vConsole
+      可查看接口日志。
+    </p>
 
     <p id="status">加载中…</p>
     <div class="trace-row">
@@ -48,10 +51,16 @@
       const signedApi = window.PaySdkDemoSignedApi
       const session = window.PaySdkDemoSession
 
+      const POLL_INTERVAL_MS = 2000
+      const ORDER_STATE_PENDING = 1
+
       const statusEl = document.getElementById('status')
       const summaryEl = document.getElementById('order-summary')
       const resultJsonEl = document.getElementById('result-json')
       const detailJsonEl = document.getElementById('detail-json')
+
+      let pollStopped = false
+      let pollTimer = null
 
       ui.bindTraceCopy()
 
@@ -59,6 +68,44 @@
         statusEl.textContent = text
         if (highlight) statusEl.classList.add('status-highlight')
         else statusEl.classList.remove('status-highlight')
+      }
+
+      function stopPolling() {
+        pollStopped = true
+        if (pollTimer != null) {
+          clearTimeout(pollTimer)
+          pollTimer = null
+        }
+      }
+
+      function sleep(ms) {
+        return new Promise(function (resolve) {
+          pollTimer = setTimeout(function () {
+            pollTimer = null
+            resolve()
+          }, ms)
+        })
+      }
+
+      function isPending(detail) {
+        if (!detail || detail.orderState == null || detail.orderState === '') return true
+        return Number(detail.orderState) === ORDER_STATE_PENDING
+      }
+
+      function applyDetail(detail, orderRequest, envelope) {
+        detailJsonEl.textContent = JSON.stringify(envelope || detail, null, 2)
+        session.renderOrderSummary(summaryEl, {
+          detail: detail || {},
+          orderRequest: orderRequest
+        })
+        if (detail && detail.orderState != null && detail.orderState !== '') {
+          const label = detail.orderState + ' · ' + session.orderStateLabel(detail.orderState)
+          if (isPending(detail)) {
+            setStatus('订单状态：' + label + ' · 轮询中…', false)
+          } else {
+            setStatus('订单状态：' + label, true)
+          }
+        }
       }
 
       async function boot() {
@@ -86,34 +133,36 @@
               : '—'
           setStatus('来源：' + source + ' · 状态：' + state, true)
         } else {
-          setStatus('无终态回调，尝试刷新订单详情…', false)
+          setStatus('无终态回调，开始轮询订单详情…', false)
         }
 
         let detail = (saved && saved.orderDetail) || null
-        if (token) {
+        if (detail) {
+          applyDetail(detail, orderRequest, detail)
+        }
+
+        if (!token) {
+          if (!detail) {
+            summaryEl.textContent = '缺少 token，无法查询订单详情。'
+            setStatus('无 token', false)
+          }
+          return
+        }
+
+        while (!pollStopped) {
           try {
             const detailResult = await signedApi.queryOrder({
               environment: environment,
               token: token
             })
+            if (pollStopped) return
             detail = detailResult.data
-            detailJsonEl.textContent = JSON.stringify(
-              detailResult.envelope || detailResult.data,
-              null,
-              2
-            )
             ui.showTraceId(detailResult.traceId)
             console.log('[demo] result order detail', detailResult.envelope || detail)
-            if (detail && detail.orderState != null) {
-              setStatus(
-                '订单状态：' +
-                  detail.orderState +
-                  ' · ' +
-                  session.orderStateLabel(detail.orderState),
-                true
-              )
-            }
+            applyDetail(detail, orderRequest, detailResult.envelope || detail)
+            if (!isPending(detail)) break
           } catch (err) {
+            if (pollStopped) return
             console.error('[demo] result queryOrder failed', err)
             detailJsonEl.textContent = JSON.stringify(
               (err && err.envelope) || { message: String(err && err.message) },
@@ -121,24 +170,19 @@
               2
             )
             ui.showTraceId(err && err.traceId)
-            if (!detail) {
-              setStatus('刷新详情失败：' + (err.message || err), false)
-            }
+            setStatus('刷新详情失败：' + (err.message || err) + ' · 继续轮询…', false)
           }
-        } else if (detail) {
-          detailJsonEl.textContent = JSON.stringify(detail, null, 2)
+          await sleep(POLL_INTERVAL_MS)
         }
-
-        session.renderOrderSummary(summaryEl, {
-          detail: detail || {},
-          orderRequest: orderRequest
-        })
       }
 
       document.getElementById('again-btn').addEventListener('click', function () {
+        stopPolling()
         session.clearOrderSession()
         location.href = './index.html'
       })
+
+      window.addEventListener('pagehide', stopPolling)
 
       void boot()
     </script>

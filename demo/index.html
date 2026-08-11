@@ -249,17 +249,12 @@
         return method === 'applePay' ? '501' : '701'
       }
 
-      function isApplePlatform() {
-        const ua = navigator.userAgent || ''
-        const platform = navigator.platform || ''
-        if (/iPhone|iPad|iPod/i.test(ua)) return true
-        if (platform === 'MacIntel' && Number(navigator.maxTouchPoints || 0) > 1) return true
-        if (/Macintosh|Mac OS X/i.test(ua)) return true
-        return false
+      function canUseApplePay() {
+        return typeof window.ApplePaySession === 'function'
       }
 
       function detectPreferredWalletMethod() {
-        if (isApplePlatform()) return 'applePay'
+        if (canUseApplePay()) return 'applePay'
         return 'googlePay'
       }
 

@@ -1077,6 +1077,18 @@ apple-pay-button {
       if (envelope == null ? void 0 : envelope.traceId) {
         this.lastTraceId = envelope.traceId
       }
+      if (
+        typeof console !== 'undefined' &&
+        (url.includes('/merchant/order/create') || url.includes('/payment-hub/alchemy-pay'))
+      ) {
+        const label = url.includes('/alchemy-pay')
+          ? '[PaySdk] 支付接口返回（完整 JSON，可复制）'
+          : '[PaySdk] 创建订单接口返回（完整 JSON，可复制）'
+        try {
+          console.log(label, envelope)
+          console.log(label + ' JSON 字符串\n' + JSON.stringify(envelope, null, 2))
+        } catch {}
+      }
       if (!response.ok || !envelope || envelope.returnCode !== SUCCESS_RETURN_CODE) {
         throw new PayApiError(
           (envelope == null ? void 0 : envelope.returnMsg) || 'Pay API request failed',

@@ -485,6 +485,15 @@
         const orderResponse = createResult.data
         orderResponseEl.textContent = JSON.stringify(orderResponse, null, 2)
         ui.showTraceId(createResult.traceId)
+        // Full envelope for Mock paste (index → confirm_mock)
+        console.log(
+          '[demo] 创建订单接口返回（完整 JSON，可复制）',
+          createResult.envelope || orderResponse
+        )
+        console.log(
+          '[demo] 创建订单接口返回 JSON 字符串\n' +
+            JSON.stringify(createResult.envelope || orderResponse, null, 2)
+        )
 
         if (!orderResponse || !orderResponse.token) {
           statusEl.textContent = '创建订单成功但缺少 token，无法进入确认页'

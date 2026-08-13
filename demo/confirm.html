@@ -59,7 +59,7 @@
 
     <script src="./vendor/vconsole.min.js"></script>
     <script src="./demo-vconsole.js"></script>
-    <script src="./pay-sdk.js"></script>
+    <script src="https://static.alchemypay.org/ramp-pay/v1/pay.min.js"></script>
     <script src="./config.js"></script>
     <script src="./signed-api.js"></script>
     <script src="./demo-session.js"></script>
@@ -261,7 +261,7 @@
           false
         )
 
-        sdk = PaySdk.init({
+        sdk = RampPay.init({
           container: '#pay-container',
           environment: environment,
           actionMode: actionMode,

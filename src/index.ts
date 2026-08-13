@@ -97,7 +97,7 @@ export {
 
 function validateConfig(config: PaySdkConfig): void {
   if (!config || typeof config !== 'object') {
-    throw new Error('PaySdk.init requires a config object')
+    throw new Error('RampPay.init requires a config object')
   }
   const order = config.order
   if (!order || typeof order !== 'object') {
@@ -677,6 +677,8 @@ class PaySdk implements PaySdkInstance {
   }
 }
 
+export const version: string = __SDK_VERSION__
+
 export function init(config: PaySdkConfig): PaySdkInstance {
   validateConfig(config)
   return new PaySdk(config)
@@ -684,12 +686,17 @@ export function init(config: PaySdkConfig): PaySdkInstance {
 
 declare global {
   interface Window {
-    PaySdk: { init: typeof init }
+    RampPay: {
+      init: typeof init
+      version: string
+      describeS3ds: typeof describeS3ds
+      describePayResponse: typeof describePayResponse
+    }
     /** Native 二级页命中 redirect/callback 后调用，催原页立刻查单 */
     __paySdkSecondaryReturn?: () => void
   }
 }
 
 if (typeof window !== 'undefined') {
-  window.PaySdk = { init }
+  window.RampPay = { init, version, describeS3ds, describePayResponse }
 }

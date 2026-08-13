@@ -478,7 +478,7 @@ interface PaySdkBaseConfig extends PaySdkCallbacks {
 }
 
 /**
- * `PaySdk.init` 配置：商户已创建订单 → 钱包授权 → 支付 → 查询。
+ * `RampPay.init` 配置：商户已创建订单 → 钱包授权 → 支付 → 查询。
  * `order` 为创建订单响应（含 `token` / `paymentScript` / `risk`）；SDK 不再调创建订单、不签名。
  */
 export interface PaySdkConfig extends PaySdkBaseConfig {

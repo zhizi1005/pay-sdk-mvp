@@ -11,7 +11,7 @@
 | 3   | [`pay.ts`](./pay.ts)                             | **POST** | `PayRequest` → `PayResponse`                           | SDK：钱包授权后                                           |
 | 4   | [`query-order.ts`](./query-order.ts)             | **GET**  | `QueryOrderRequest` → `QueryOrderResponse`             | SDK：**仅**接口 3 未直接成功时                            |
 
-> 创建订单（接口 1）由商户服务端签名调用；响应含 `token`，传入 `PaySdk.init({ order })`。  
+> 创建订单（接口 1）由商户服务端签名调用；响应含 `token`，传入 `RampPay.init({ order })`。  
 > SDK 调用接口 2–4 时请求头带 **`payment-hub-token: <token>`**，不签名。仅接口 4 为 GET。  
 > 路径见 SDK `src/endpoints.ts`。入口：`import … from './pay-api'`（[`index.ts`](./index.ts)）。
 
@@ -240,6 +240,6 @@ SDK 从钱包结果映射：`encryptedData` → `customParam`；账单扁平进 
 
 ## 7. 备注
 
-- `environment`（创单响应）：决定 Google Pay `PaymentsClient.environment`（及 TEST 缺省补齐）；可从顶层或 `paymentScript.environment` 提升。与 `PaySdk.init({ environment })` **无关**——后者主要用于内置 API 根域名与 Checkout Risk 沙盒选择。
+- `environment`（创单响应）：决定 Google Pay `PaymentsClient.environment`（及 TEST 缺省补齐）；可从顶层或 `paymentScript.environment` 提升。与 `RampPay.init({ environment })` **无关**——后者主要用于内置 API 根域名与 Checkout Risk 沙盒选择。
 - 含 `PAYMENT_AUTHORIZATION` 时须提供 `onPaymentAuthorized`，否则 sheet 会失败或卡住。
 - 与历史 payment-hub 字段映射由服务端完成；联调以本目录与 ramp-vue 为准。

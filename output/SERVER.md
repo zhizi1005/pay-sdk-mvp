@@ -92,15 +92,15 @@ App 场景请保证 `redirectUrl`（及如需的 `callbackUrl`）可被 Native `
 
 ### 4.2 响应 `data`（须交给 SDK）
 
-| 字段            | 必填 | 说明                                                                                                                                                                                       |
-| --------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `orderNo`       | 是   | 平台订单号                                                                                                                                                                                 |
-| `paymentScript` | 是   | Google / Apple 原生唤起参数                                                                                                                                                                |
-| `token`         | 是   | SDK 后续请求头 `payment-hub-token`                                                                                                                                                         |
-| `environment`   | 否   | `'TEST'` \| `'PRODUCTION'`；**Google Pay `PaymentsClient.environment` 只读此字段**（或 `paymentScript.environment`）；缺省按 PRODUCTION；与 `PaySdk.init({ environment })`（API 域名）无关 |
-| `risk`          | 否   | 风控开关（Forter / Checkout / WorldPay）                                                                                                                                                   |
+| 字段            | 必填 | 说明                                                                                                                                                                                        |
+| --------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `orderNo`       | 是   | 平台订单号                                                                                                                                                                                  |
+| `paymentScript` | 是   | Google / Apple 原生唤起参数                                                                                                                                                                 |
+| `token`         | 是   | SDK 后续请求头 `payment-hub-token`                                                                                                                                                          |
+| `environment`   | 否   | `'TEST'` \| `'PRODUCTION'`；**Google Pay `PaymentsClient.environment` 只读此字段**（或 `paymentScript.environment`）；缺省按 PRODUCTION；与 `RampPay.init({ environment })`（API 域名）无关 |
+| `risk`          | 否   | 风控开关（Forter / Checkout / WorldPay）                                                                                                                                                    |
 
-收银台：`PaySdk.init({ order: data })`，其中 `data` 为上述响应体（至少含 `orderNo` / `paymentScript` / `token`）。TEST 联调请保证响应带 `environment: 'TEST'`，否则 Google Pay 会按 PRODUCTION 建 client。
+收银台：`RampPay.init({ order: data })`，其中 `data` 为上述响应体（至少含 `orderNo` / `paymentScript` / `token`）。TEST 联调请保证响应带 `environment: 'TEST'`，否则 Google Pay 会按 PRODUCTION 建 client。
 
 ---
 

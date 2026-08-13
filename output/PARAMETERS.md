@@ -1,4 +1,4 @@
-# PaySdk.init 参数说明（商户最终版）
+# RampPay.init 参数说明（商户最终版）
 
 图例：**必传** = 必须提供，否则 `init` 抛错；**条件** = 某种用法下必传。
 
@@ -33,7 +33,7 @@ SDK 编排：**商户已创建订单** → 钱包授权 → 支付 →（需要�
 ### 示例：SDK 渲染官方按钮
 
 ```js
-const sdk = PaySdk.init({
+const sdk = RampPay.init({
   container: '#pay-container',
   order: createOrderResponseFromYourServer,
   api: {
@@ -66,7 +66,7 @@ const btn = document.getElementById('pay-now')
 btn.disabled = true
 btn.textContent = '加载中'
 
-const sdk = PaySdk.init({
+const sdk = RampPay.init({
   // 可不传 container
   order: createOrderResponseFromYourServer,
   onSuccess(result) {

@@ -3,18 +3,22 @@
 本文说明商户如何在 **App WebView**（及同构收银台 H5）中接入 Pay SDK，完成 Google Pay / Apple Pay 支付。  
 **App 内嵌须同时阅读** [WEBVIEW.md](./WEBVIEW.md)（Bridge / 底部抽屉 / 3DS 壳页）；服务端见 [SERVER.md](./SERVER.md)。
 
-同目录 [`pay-sdk.js`](./pay-sdk.js) 为交付用 SDK 文件。
+同目录 [`pay.min.js`](./pay.min.js) 为交付用 SDK 文件（上传 CDN 后用官方链接）。
 
 ---
 
 ## 1. 接入方式
 
-推荐使用 **`<script>` 引入** `pay-sdk.js`（IIFE，挂载到 `window.PaySdk`）。
+推荐使用 **`<script>` 引入** 官方托管文件（IIFE，挂载到 `window.RampPay`）。
 
 ```html
-<script src="./pay-sdk.js"></script>
-<!-- 或 -->
-<script src="https://你的CDN域名/pay-sdk.js"></script>
+<script src="https://static.alchemypay.org/ramp-pay/v1/pay.min.js"></script>
+```
+
+自托管可用同目录 `pay.min.js`：
+
+```html
+<script src="./pay.min.js"></script>
 ```
 
 **环境要求：**
@@ -31,7 +35,7 @@
 ```text
 商户服务端签名创建订单 → 拿到 data（含 paymentScript / risk / token）
   → 引入 SDK
-  → PaySdk.init({ order: 创建订单响应 })  // 用 mount 时再传 container
+  → RampPay.init({ order: 创建订单响应 })  // 用 mount 时再传 container
   → ready()：用传入订单选钱包 → 预采风控 → 检查可用（resolve = 可点击 / 可唤起）
   → 二选一唤起钱包：
        · mount()：在 container 渲染官方 Google / Apple Pay 按钮，用户点击官方按钮
@@ -46,7 +50,7 @@
   → 轮询到成功/失败（或浏览器整页离开后由落地页处理）：onSuccess 或 onError / onComplete
 ```
 
-商户须在**服务端**调用创建订单（按 [API Sign](https://alchemypay.readme.io/docs/api-sign) 签名），把响应（含 **`token`**）传入 `PaySdk.init`。详见 [SERVER.md](./SERVER.md)。
+商户须在**服务端**调用创建订单（按 [API Sign](https://alchemypay.readme.io/docs/api-sign) 签名），把响应（含 **`token`**）传入 `RampPay.init`。详见 [SERVER.md](./SERVER.md)。
 
 SDK **不**调用创建订单、**不**签名、**不**需要 `appId` / `appSecret`；后续 domain/verify、alchemy-pay、order/detail 自动带请求头 **`payment-hub-token`**。
 
@@ -78,12 +82,12 @@ SDK **不**调用创建订单、**不**签名、**不**需要 `appId` / `appSecr
   </head>
   <body>
     <div id="pay-container"></div>
-    <script src="./pay-sdk.js"></script>
+    <script src="https://static.alchemypay.org/ramp-pay/v1/pay.min.js"></script>
     <script>
       // order = 商户服务端创建订单接口返回的 data（须含 token）
       const order = window.__CREATE_ORDER_DATA__
 
-      const sdk = PaySdk.init({
+      const sdk = RampPay.init({
         container: '#pay-container',
         order: order,
         // 支付直接成功，或轮询查单到成功态
@@ -122,12 +126,12 @@ SDK **不**调用创建订单、**不**签名、**不**需要 `appId` / `appSecr
 
 ```html
 <button id="pay-now" disabled>加载中</button>
-<script src="./pay-sdk.js"></script>
+<script src="https://static.alchemypay.org/ramp-pay/v1/pay.min.js"></script>
 <script>
   const order = window.__CREATE_ORDER_DATA__
   const btn = document.getElementById('pay-now')
 
-  const sdk = PaySdk.init({
+  const sdk = RampPay.init({
     // 可不传 container
     order: order,
     onSuccess(result) {
@@ -200,13 +204,13 @@ API 根域名：`https://api.alchemypay.org`
 
 ## 5. 实例方法
 
-| 方法                  | 说明                                                               |
-| --------------------- | ------------------------------------------------------------------ |
-| `PaySdk.init(config)` | 校验配置并返回实例                                                 |
-| `sdk.ready()`         | 规范化订单、预采风控、检查钱包可用；**resolve = 可点击 / 可唤起**  |
-| `sdk.mount()`         | 在 `container` 渲染官方支付按钮（须先传 `container`）              |
-| `sdk.pay()`           | 同步唤起钱包 sheet；自定义按钮在用户点击回调内调用；须先 `ready()` |
-| `sdk.destroy()`       | 移除官方按钮（若有）、清理 iframe 与轮询                           |
+| 方法                   | 说明                                                               |
+| ---------------------- | ------------------------------------------------------------------ |
+| `RampPay.init(config)` | 校验配置并返回实例                                                 |
+| `sdk.ready()`          | 规范化订单、预采风控、检查钱包可用；**resolve = 可点击 / 可唤起**  |
+| `sdk.mount()`          | 在 `container` 渲染官方支付按钮（须先传 `container`）              |
+| `sdk.pay()`            | 同步唤起钱包 sheet；自定义按钮在用户点击回调内调用；须先 `ready()` |
+| `sdk.destroy()`        | 移除官方按钮（若有）、清理 iframe 与轮询                           |
 
 二次动作见 §6：纯浏览器可用 `actionMode: 'auto'`；App 见 [WEBVIEW.md](./WEBVIEW.md)。**不要**在收银台 WebView 内对 `webUrl` / `s3ds` 做整页跳转。
 
@@ -227,7 +231,7 @@ API 根域名：`https://api.alchemypay.org`
 | `threeDSMethod`   | 隐藏 iframe POST             | 继续      |
 
 ```js
-PaySdk.init({
+RampPay.init({
   container: '#pay-container',
   order: createOrderResponseFromYourServer,
   actionMode: 'auto',
@@ -280,10 +284,10 @@ PaySdk.init({
 
 ## 9. 接入检查清单
 
-- [ ] 已引入同目录或 CDN 的 `pay-sdk.js`，页面 HTTPS
+- [ ] 已引入 `https://static.alchemypay.org/ramp-pay/v1/pay.min.js`（或自托管 `pay.min.js`），页面 HTTPS
 - [ ] 使用 `mount()`：`container` 存在且可见；或使用自定义按钮：`ready` 后启用按钮并在点击时同步调 `pay()`
 - [ ] **服务端**创建订单响应含 `orderNo` / `paymentScript` / `token`
-- [ ] `PaySdk.init({ order })` 传入完整响应
+- [ ] `RampPay.init({ order })` 传入完整响应
 - [ ] 实现 `onSuccess` / `onError` / `onCancel` / `onAction`
 - [ ] 纯浏览器：需要 SDK 自动打开二次动作时设 `actionMode: 'auto'`（见 §6.1）
 - [ ] App：`actionMode: 'callback'`（默认）+ 按 [WEBVIEW.md](./WEBVIEW.md) 实现 Bridge；`webUrl`/`s3ds` 不在收银台做整页跳转

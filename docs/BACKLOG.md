@@ -9,7 +9,7 @@
 
 ### 1. Native SDK（Android / iOS）
 
-- **现状**：仅有浏览器 / App WebView 用的 JS-SDK（`pay-sdk.js` + Bridge，见 [`output/WEBVIEW.md`](../output/WEBVIEW.md)、[`output/SDK.md`](../output/SDK.md)）。
+- **现状**：仅有浏览器 / App WebView 用的 JS-SDK（`pay.min.js` + Bridge，见 [`output/WEBVIEW.md`](../output/WEBVIEW.md)、[`output/SDK.md`](../output/SDK.md)）。
 - **缺口**：缺少纯 Native Android / iOS SDK。
 - **后续计划**：等 JS-SDK 测试通过，或商户对接稳定后再开发对应 Native 版本。
 

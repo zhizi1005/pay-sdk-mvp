@@ -3,7 +3,7 @@
  * POST /open/api/v4/merchant/getToken
  *
  * 创建订单等业务接口请求头需要 `access-token`。
- * 建议商户服务端调用本接口后，把 `accessToken` 传给 PaySdk.init，
+ * 建议商户服务端调用本接口后，把 `accessToken` 传给 RampPay.init，
  * 避免 JS SDK 在渲染支付按钮前再请求一次 getToken。
  *
  * email 与 uid 二选一必填。

@@ -15,7 +15,7 @@ Written in **TypeScript**; bundled to a single IIFE file with Vite.
 
 ```bash
 npm install
-npm run build      # type-check, bundle dist/pay-sdk.js + copy to demo/pay-sdk.js, emit dist/types/*.d.ts
+npm run build      # type-check, minify dist/pay.min.js, copy to output/ + output/ramp-pay/v1/
 npm run typecheck  # type-check only
 npm run demo       # build + serve demos at http://localhost:5173/
 npm run format     # prettier write
@@ -35,7 +35,7 @@ npm run format     # prettier write
 
 ```html
 <div id="pay-container"></div>
-<script src="./dist/pay-sdk.js"></script>
+<script src="https://static.alchemypay.org/ramp-pay/v1/pay.min.js"></script>
 <script>
   // Merchant server already created the order (signed). Pass response data here.
   const order = {
@@ -45,7 +45,7 @@ npm run format     # prettier write
     risk: {/* optional */}
   }
 
-  const sdk = PaySdk.init({
+  const sdk = RampPay.init({
     container: '#pay-container',
     order: order,
     api: {
@@ -74,7 +74,7 @@ npm run format     # prettier write
 ```
 
 **Create-order** is performed by the merchant server (API Sign). Pass the response
-(including `token`) to `PaySdk.init({ order })`. The SDK does **not** sign and does
+(including `token`) to `RampPay.init({ order })`. The SDK does **not** sign and does
 **not** call create-order; verify / pay / detail requests send header
 `payment-hub-token: <token>`.
 
@@ -92,13 +92,13 @@ cashier WebView to `webUrl` / `s3ds`.
 
 ## API
 
-| Method                | Description                                                                                                  |
-| --------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `PaySdk.init(config)` | Validates `order` (+ optional `api`) and returns an SDK instance.                                            |
-| `sdk.ready()`         | Uses the passed create-order response, starts risk prefetch, loads the selected wallet, checks availability. |
-| `sdk.mount()`         | Renders the wallet button. May be called before `ready()`; preparation then runs automatically.              |
-| `sdk.pay()`           | Starts wallet authorize in the user-gesture stack (custom button). Call after `ready()` resolves.            |
-| `sdk.destroy()`       | Clears the button, payment-action iframe and active order polling timer.                                     |
+| Method                 | Description                                                                                                            |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `RampPay.init(config)` | Validates `order` (+ optional `api`) and returns an SDK instance. `RampPay.version` is the exact build (e.g. `1.0.0`). |
+| `sdk.ready()`          | Uses the passed create-order response, starts risk prefetch, loads the selected wallet, checks availability.           |
+| `sdk.mount()`          | Renders the wallet button. May be called before `ready()`; preparation then runs automatically.                        |
+| `sdk.pay()`            | Starts wallet authorize in the user-gesture stack (custom button). Call after `ready()` resolves.                      |
+| `sdk.destroy()`        | Clears the button, payment-action iframe and active order polling timer.                                               |
 
 ## Result shape (`onSuccess` / `onComplete`)
 
@@ -115,6 +115,6 @@ cashier WebView to `webUrl` / `s3ds`.
 - [output/SDK.md](output/SDK.md) — merchant H5 / SDK
 - [output/WEBVIEW.md](output/WEBVIEW.md) — App WebView / Bridge
 - [output/GOOGLE_PAY_ANDROID.md](output/GOOGLE_PAY_ANDROID.md) — Android Production（`OR_BIBED_11` / `13` / `15` 与官方链接）
-- [output/PARAMETERS.md](output/PARAMETERS.md) — merchant `PaySdk.init` parameters
+- [output/PARAMETERS.md](output/PARAMETERS.md) — merchant `RampPay.init` parameters
 - [docs/pay-api/](docs/pay-api/) — internal API contracts（详细类型）
 - [docs/PARAMETERS.md](docs/PARAMETERS.md) — same parameter surface as output/PARAMETERS.md

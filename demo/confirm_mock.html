@@ -75,7 +75,7 @@
 
     <script src="./vendor/vconsole.min.js"></script>
     <script src="./demo-vconsole.js"></script>
-    <script src="./pay-sdk.js"></script>
+    <script src="https://static.alchemypay.org/ramp-pay/v1/pay.min.js"></script>
     <script src="./config.js"></script>
     <script src="./signed-api.js"></script>
     <script src="./demo-session.js"></script>
@@ -374,8 +374,8 @@
             if (current.s3dsUrl && current.s3dsUrl !== lastS3dsUrl) {
               lastS3dsUrl = current.s3dsUrl
               const s3dsAction =
-                typeof PaySdk.describeS3ds === 'function'
-                  ? PaySdk.describeS3ds(current.s3dsUrl)
+                typeof RampPay.describeS3ds === 'function'
+                  ? RampPay.describeS3ds(current.s3dsUrl)
                   : { type: 's3ds', url: current.s3dsUrl, s3dsUrl: current.s3dsUrl }
               const outcome = handleAction(s3dsAction)
               if (outcome === 'navigated') return
@@ -459,7 +459,7 @@
 
         let action = null
         try {
-          action = PaySdk.describePayResponse(data)
+          action = RampPay.describePayResponse(data)
         } catch (err) {
           setStatus('解析二次动作失败：' + (err && err.message ? err.message : err), true)
           return
@@ -556,7 +556,7 @@
         }
 
         try {
-          sdk = PaySdk.init({
+          sdk = RampPay.init({
             environment: environment,
             actionMode: actionMode,
             order: ensureOrderForSdk(orderResponse),
@@ -570,7 +570,7 @@
             }
           })
         } catch (err) {
-          console.error('[demo-mock] PaySdk.init failed', err)
+          console.error('[demo-mock] RampPay.init failed', err)
           setStatus('SDK init 失败（openAction 可能不可用）：' + (err.message || err), false)
           sdk = null
         }

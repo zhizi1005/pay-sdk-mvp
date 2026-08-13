@@ -1,14 +1,14 @@
 {
   "name": "pay-sdk-mvp",
-  "version": "0.1.0",
-  "description": "Embeddable browser JS Pay SDK for Google Pay and Apple Pay",
+  "version": "1.0.0",
+  "description": "Embeddable browser JS RampPay SDK for Google Pay and Apple Pay",
   "type": "module",
   "types": "dist/types/index.d.ts",
   "scripts": {
     "dev": "vite --config vite.demo.config.ts",
     "demo": "npm run build && vite --config vite.demo.config.ts",
     "typecheck": "tsc --noEmit",
-    "build": "tsc --noEmit && vite build && tsc --emitDeclarationOnly && cp dist/pay-sdk.js demo/pay-sdk.js && cp dist/pay-sdk.js output/pay-sdk.js",
+    "build": "tsc --noEmit && vite build && tsc --emitDeclarationOnly",
     "preview": "npm run build && vite --config vite.demo.config.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

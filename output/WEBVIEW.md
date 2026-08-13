@@ -161,11 +161,11 @@ function closePayDrawer() {
 }
 
 function missingBridge(method) {
-  console.error('[PaySdk] NativeBridge.' + method + ' missing; please upgrade the App')
+  console.error('[RampPay] NativeBridge.' + method + ' missing; please upgrade the App')
   // 正式 App：可 Toast「请升级 App」
 }
 
-var sdk = PaySdk.init({
+var sdk = RampPay.init({
   container: '#pay-button',
   order: createOrderResponseData,
   onAction: function (action) {

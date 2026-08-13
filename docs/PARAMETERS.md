@@ -34,7 +34,7 @@ SDK 编排：**商户已创建订单** → 钱包授权 → 支付 →（需要�
 ### 示例：SDK 渲染官方按钮
 
 ```js
-const sdk = PaySdk.init({
+const sdk = RampPay.init({
   container: '#pay-container',
   order: createOrderResponseFromYourServer,
   api: {
@@ -67,7 +67,7 @@ const btn = document.getElementById('pay-now')
 btn.disabled = true
 btn.textContent = '加载中'
 
-const sdk = PaySdk.init({
+const sdk = RampPay.init({
   // 可不传 container
   order: createOrderResponseFromYourServer,
   onSuccess(result) {

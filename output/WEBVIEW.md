@@ -27,6 +27,7 @@ H5 SDK 接入见 [SDK.md](./SDK.md)；参考壳页见 [`html/`](./html/)。
 补充：
 
 - Android：Google Pay 依赖较新系统 WebView，以及设备 / Google 账号环境；不可用时 `ready()` 会失败
+- Android **Production**：宿主 App 须在 Google Pay Console 完成 App integration（包名 + SHA-256）；常见 `OR_BIBED_11` / `13` / `15` 与官方链接见 **[GOOGLE_PAY_ANDROID.md](./GOOGLE_PAY_ANDROID.md)**
 - iOS：Apple Pay 需**真机** + Wallet 可用 + 商户域名已校验；模拟器或无钱包设备不可用
 - 二级动作（webUrl / 3DS 壳页）必须在 Native **底部抽屉**内嵌的独立 WebView 中打开，不要在主 WebView 整页跳转
 
@@ -278,3 +279,4 @@ SDK 轮询**继续**；`onCancel` **不会**因此触发（`onCancel` 只表示�
 - [ ] 未在收银台 WebView 对 `webUrl`/`s3ds` 做整页跳转
 - [ ] 联调确认原页仍在轮询 `order/detail`
 - [ ] 离开收银台 `sdk.destroy()` 并关抽屉
+- [ ] Google Pay **Production**：Pay Console App integration 已过审；WebView 已按官方启用 Payment Request（见 [GOOGLE_PAY_ANDROID.md](./GOOGLE_PAY_ANDROID.md)，`OR_BIBED_11` / `13` / `15`）

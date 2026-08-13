@@ -114,6 +114,7 @@ cashier WebView to `webUrl` / `s3ds`.
 - [output/](output/) — **商户最终版交付包**（SDK 文件、接入文档、WebView、3DS 壳页）
 - [output/SDK.md](output/SDK.md) — merchant H5 / SDK
 - [output/WEBVIEW.md](output/WEBVIEW.md) — App WebView / Bridge
+- [output/GOOGLE_PAY_ANDROID.md](output/GOOGLE_PAY_ANDROID.md) — Android Production（`OR_BIBED_11` / `13` / `15` 与官方链接）
 - [output/PARAMETERS.md](output/PARAMETERS.md) — merchant `PaySdk.init` parameters
 - [docs/pay-api/](docs/pay-api/) — internal API contracts（详细类型）
 - [docs/PARAMETERS.md](docs/PARAMETERS.md) — same parameter surface as output/PARAMETERS.md

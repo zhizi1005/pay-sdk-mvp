@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>3DS Challenge</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: #fff;
+        font-family: -apple-system, system-ui, sans-serif;
+      }
+      #wrap {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100%;
+        padding: 16px;
+        box-sizing: border-box;
+      }
+      #challengeFrame {
+        width: min(100%, 390px);
+        height: min(100vh - 32px, 400px);
+        border: 0;
+        background: #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="wrap">
+      <iframe
+        id="challengeFrame"
+        name="paySdkChallengeFrame"
+        title="3D Secure verification"
+      ></iframe>
+    </div>
+    <script>
+      /**
+       * Native 在壳页加载完成后注入并调用。
+       * @param {{ MD: string, JWT: string, action: string }} payload
+       */
+      window.__paySdkRenderChallenge = function (payload) {
+        if (!payload || !payload.action || !payload.MD || !payload.JWT) {
+          console.error('[pay-sdk] __paySdkRenderChallenge: missing MD/JWT/action', payload)
+          return
+        }
+        var form = document.createElement('form')
+        form.method = 'POST'
+        form.action = payload.action
+        form.target = 'paySdkChallengeFrame'
+        form.style.display = 'none'
+        ;['MD', 'JWT'].forEach(function (name) {
+          var input = document.createElement('input')
+          input.type = 'hidden'
+          input.name = name
+          input.value = payload[name]
+          form.appendChild(input)
+        })
+        document.body.appendChild(form)
+        form.submit()
+        form.remove()
+      }
+    </script>
+  </body>
+</html>

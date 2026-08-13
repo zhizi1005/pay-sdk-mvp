@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Self-wallet Apple Pay</title>
+    <!--
+      Official docs (do not reimplement Alchemy pay.min.js):
+      https://developer.apple.com/documentation/applepayontheweb
+      https://developer.apple.com/documentation/applepayontheweb/applepaysession/providing-merchant-validation
+      Page origin MUST be an Apple-registered domain for merchant validation.
+    -->
+    <script src="https://applepay.cdn-apple.com/jsapi/1.latest/apple-pay-sdk.js"></script>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 16px;
+        font-family: -apple-system, system-ui, sans-serif;
+        background: #fff;
+      }
+      apple-pay-button {
+        --apple-pay-button-width: 100%;
+        --apple-pay-button-height: 48px;
+        --apple-pay-button-border-radius: 8px;
+        --apple-pay-button-padding: 0;
+        display: block;
+      }
+      .hint {
+        font-size: 13px;
+        color: #666;
+        margin-bottom: 12px;
+      }
+      .err {
+        color: #c00;
+        font-size: 13px;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <p class="hint">
+      Reference page only. Pass create-order <code>data</code> via
+      <code>postMessage({ type: 'self-wallet:init', ... })</code>. Host this page on an
+      Apple-registered HTTPS domain.
+    </p>
+    <apple-pay-button
+      id="applePayButton"
+      buttonstyle="black"
+      type="plain"
+      locale="en-US"
+      style="display: none"
+    ></apple-pay-button>
+    <pre id="err" class="err"></pre>
+    <script>
+      ;(function () {
+        var APPLE_PAY_VERSION = 3
+        var state = {
+          apiBase: '',
+          order: null,
+          parentOrigin: '*'
+        }
+
+        function showError(msg) {
+          var el = document.getElementById('err')
+          if (el) el.textContent = msg || ''
+        }
+
+        function postResult(payload) {
+          if (window.parent && window.parent !== window) {
+            window.parent.postMessage(
+              Object.assign({ type: 'self-wallet:result' }, payload),
+              state.parentOrigin || '*'
+            )
+          }
+        }
+
+        function headers() {
+          var h = {
+            'Content-Type': 'application/json',
+            'payment-hub-token': state.order.token
+          }
+          if (state.order.fingerprintId) {
+            h['fingerprint-id'] = state.order.fingerprintId
+          }
+          return h
+        }
+
+        function validateMerchantUrl() {
+          if (state.order.validateMerchantUrl) return state.order.validateMerchantUrl
+          return state.apiBase.replace(/\/$/, '') + '/payment-hub/domain/verify'
+        }
+
+        function mapBilling(contact) {
+          if (!contact) return null
+          var lines = contact.addressLines || []
+          return {
+            addressLine1: lines[0] || '',
+            addressLine2: lines.slice(1).join(' '),
+            city: contact.locality || '',
+            state: contact.administrativeArea || '',
+            zip: contact.postalCode || '',
+            country: contact.countryCode || '',
+            firstName: contact.givenName || '',
+            lastName: contact.familyName || ''
+          }
+        }
+
+        function buildPayBody(payment) {
+          var customParam = { encryptedData: JSON.stringify(payment) }
+          var billing = mapBilling(payment && payment.billingContact)
+          var body = { orderNo: state.order.orderNo, customParam: customParam }
+          if (billing) {
+            Object.keys(billing).forEach(function (k) {
+              customParam[k] = billing[k]
+            })
+            body.poaParams = {
+              address: billing.addressLine1,
+              city: billing.city,
+              state: billing.state,
+              postcode: billing.zip,
+              country: billing.country
+            }
+          }
+          var risk = state.order.riskPayload || {}
+          if (risk.forterToken || risk.checkoutCookie) {
+            body.businessParams = {}
+            if (risk.forterToken) body.businessParams.cookie = risk.forterToken
+            if (risk.checkoutCookie) body.businessParams.checkoutCookie = risk.checkoutCookie
+          }
+          if (risk.worldPaySessionId) body.sessionId = risk.worldPaySessionId
+          return body
+        }
+
+        function classifyPayData(data) {
+          if (!data) return { kind: 'success' }
+          if (data.MD && data.JWT && data.action) {
+            return {
+              kind: 'threeDS',
+              MD: data.MD,
+              JWT: data.JWT,
+              action: data.action
+            }
+          }
+          if (data.webUrl) return { kind: 'webUrl', webUrl: data.webUrl }
+          if (data.threeDSMethodData && data.methodUrl) {
+            return {
+              kind: 'threeDSMethod',
+              threeDSMethodData: data.threeDSMethodData,
+              methodUrl: data.methodUrl
+            }
+          }
+          return { kind: 'success' }
+        }
+
+        async function callValidateMerchant(validationURL) {
+          var res = await fetch(validateMerchantUrl(), {
+            method: 'POST',
+            headers: headers(),
+            body: JSON.stringify({
+              orderNo: state.order.orderNo,
+              validationURL: validationURL
+            })
+          })
+          var json = await res.json()
+          if (!json || json.returnCode !== '0000') {
+            throw new Error((json && json.returnMsg) || 'validate merchant failed')
+          }
+          return json.data
+        }
+
+        async function callPay(payment) {
+          var url = state.apiBase.replace(/\/$/, '') + '/payment-hub/alchemy-pay'
+          var res = await fetch(url, {
+            method: 'POST',
+            headers: headers(),
+            body: JSON.stringify(buildPayBody(payment))
+          })
+          var json = await res.json()
+          if (!json || json.returnCode !== '0000') {
+            throw new Error((json && json.returnMsg) || 'pay failed')
+          }
+          return classifyPayData(json.data)
+        }
+
+        function startSession() {
+          if (!window.ApplePaySession || !ApplePaySession.canMakePayments()) {
+            showError('Apple Pay not available on this device/browser')
+            return
+          }
+          var request = state.order.paymentScript
+          var session = new ApplePaySession(APPLE_PAY_VERSION, request)
+
+          session.onvalidatemerchant = function (event) {
+            callValidateMerchant(event.validationURL)
+              .then(function (merchantSession) {
+                session.completeMerchantValidation(merchantSession)
+              })
+              .catch(function (err) {
+                var message = err && err.message ? err.message : String(err)
+                showError(message)
+                postResult({ status: 'error', message: message })
+                session.abort()
+              })
+          }
+
+          session.onpaymentauthorized = function (event) {
+            callPay(event.payment)
+              .then(function (action) {
+                session.completePayment(ApplePaySession.STATUS_SUCCESS)
+                if (action.kind === 'success') {
+                  postResult({ status: 'success', payResponse: {} })
+                } else {
+                  postResult({ status: 'action', action: action })
+                }
+              })
+              .catch(function (err) {
+                var message = err && err.message ? err.message : String(err)
+                showError(message)
+                postResult({ status: 'error', message: message })
+                session.completePayment(ApplePaySession.STATUS_FAILURE)
+              })
+          }
+
+          session.oncancel = function () {
+            /* user dismissed */
+          }
+
+          session.begin()
+        }
+
+        function mount() {
+          var btn = document.getElementById('applePayButton')
+          if (!window.ApplePaySession) {
+            showError('Apple Pay JS not loaded or unsupported')
+            return
+          }
+          btn.style.display = 'block'
+          btn.onclick = function () {
+            showError('')
+            startSession()
+          }
+        }
+
+        window.addEventListener('message', function (event) {
+          var data = event.data
+          if (!data || data.type !== 'self-wallet:init') return
+          if (
+            !data.order ||
+            !data.order.paymentScript ||
+            !data.order.token ||
+            !data.order.orderNo
+          ) {
+            showError('self-wallet:init missing order.paymentScript / token / orderNo')
+            return
+          }
+          state.apiBase = data.apiBase || ''
+          state.order = data.order
+          state.parentOrigin = event.origin || '*'
+          if (!state.apiBase) {
+            showError('self-wallet:init missing apiBase')
+            return
+          }
+          mount()
+        })
+      })()
+    </script>
+  </body>
+</html>

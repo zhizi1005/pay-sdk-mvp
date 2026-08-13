@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Self-wallet Google Pay</title>
+    <!--
+      Official docs (do not reimplement Alchemy pay.min.js):
+      https://developers.google.com/pay/api/web/guides/tutorial
+      https://developers.google.com/pay/api/web/reference/request-objects#PaymentDataRequest
+    -->
+    <script src="https://pay.google.com/gp/p/js/pay.js"></script>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 16px;
+        font-family: -apple-system, system-ui, sans-serif;
+        background: #fff;
+      }
+      #googlePayButton {
+        min-height: 48px;
+      }
+      .hint {
+        font-size: 13px;
+        color: #666;
+        margin-bottom: 12px;
+      }
+      .err {
+        color: #c00;
+        font-size: 13px;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <p class="hint">
+      Reference page only. Pass create-order <code>data</code> via
+      <code>postMessage({ type: 'self-wallet:init', ... })</code>. See <code>html/README.md</code>.
+    </p>
+    <div id="googlePayButton"></div>
+    <pre id="err" class="err"></pre>
+    <script>
+      ;(function () {
+        var state = {
+          apiBase: '',
+          order: null,
+          parentOrigin: '*'
+        }
+
+        function showError(msg) {
+          var el = document.getElementById('err')
+          if (el) el.textContent = msg || ''
+        }
+
+        function postResult(payload) {
+          if (window.parent && window.parent !== window) {
+            window.parent.postMessage(
+              Object.assign({ type: 'self-wallet:result' }, payload),
+              state.parentOrigin || '*'
+            )
+          }
+        }
+
+        function headers() {
+          var h = {
+            'Content-Type': 'application/json',
+            'payment-hub-token': state.order.token
+          }
+          if (state.order.fingerprintId) {
+            h['fingerprint-id'] = state.order.fingerprintId
+          }
+          return h
+        }
+
+        function mapBilling(addr) {
+          if (!addr) return null
+          var name = (addr.name || '').trim().split(/\s+/).filter(Boolean)
+          var firstName = name.shift() || ''
+          var lastName = name.join(' ')
+          return {
+            addressLine1: addr.address1 || '',
+            addressLine2: [addr.address2, addr.address3].filter(Boolean).join(' '),
+            city: addr.locality || '',
+            state: addr.administrativeArea || '',
+            zip: addr.postalCode || '',
+            country: addr.countryCode || '',
+            firstName: firstName,
+            lastName: lastName
+          }
+        }
+
+        function buildPayBody(paymentData) {
+          var token =
+            paymentData &&
+            paymentData.paymentMethodData &&
+            paymentData.paymentMethodData.tokenizationData &&
+            paymentData.paymentMethodData.tokenizationData.token
+          var billing = mapBilling(
+            paymentData &&
+              paymentData.paymentMethodData &&
+              paymentData.paymentMethodData.info &&
+              paymentData.paymentMethodData.info.billingAddress
+          )
+          var customParam = { encryptedData: token }
+          var body = { orderNo: state.order.orderNo, customParam: customParam }
+          if (billing) {
+            Object.keys(billing).forEach(function (k) {
+              customParam[k] = billing[k]
+            })
+            body.poaParams = {
+              address: billing.addressLine1,
+              city: billing.city,
+              state: billing.state,
+              postcode: billing.zip,
+              country: billing.country
+            }
+          }
+          // Optional: parent may attach pre-collected risk on order
+          var risk = state.order.riskPayload || {}
+          if (risk.forterToken || risk.checkoutCookie) {
+            body.businessParams = {}
+            if (risk.forterToken) body.businessParams.cookie = risk.forterToken
+            if (risk.checkoutCookie) body.businessParams.checkoutCookie = risk.checkoutCookie
+          }
+          if (risk.worldPaySessionId) body.sessionId = risk.worldPaySessionId
+          return body
+        }
+
+        function classifyPayData(data) {
+          if (!data) return { kind: 'success' }
+          if (data.MD && data.JWT && data.action) {
+            return {
+              kind: 'threeDS',
+              MD: data.MD,
+              JWT: data.JWT,
+              action: data.action
+            }
+          }
+          if (data.webUrl) return { kind: 'webUrl', webUrl: data.webUrl }
+          if (data.threeDSMethodData && data.methodUrl) {
+            return {
+              kind: 'threeDSMethod',
+              threeDSMethodData: data.threeDSMethodData,
+              methodUrl: data.methodUrl
+            }
+          }
+          return { kind: 'success' }
+        }
+
+        async function callPay(paymentData) {
+          var url = state.apiBase.replace(/\/$/, '') + '/payment-hub/alchemy-pay'
+          var res = await fetch(url, {
+            method: 'POST',
+            headers: headers(),
+            body: JSON.stringify(buildPayBody(paymentData))
+          })
+          var json = await res.json()
+          if (!json || json.returnCode !== '0000') {
+            throw new Error((json && json.returnMsg) || 'pay failed')
+          }
+          return classifyPayData(json.data)
+        }
+
+        function withCallbackIntents(paymentScript) {
+          var req = Object.assign({}, paymentScript || {})
+          req.callbackIntents = ['PAYMENT_AUTHORIZATION']
+          return req
+        }
+
+        function mount() {
+          if (!window.google || !google.payments || !google.payments.api) {
+            showError('Google Pay JS not loaded')
+            return
+          }
+          var env =
+            (state.order.environment ||
+              (state.order.paymentScript && state.order.paymentScript.environment) ||
+              'PRODUCTION') === 'TEST'
+              ? 'TEST'
+              : 'PRODUCTION'
+          var client = new google.payments.api.PaymentsClient({
+            environment: env,
+            paymentDataCallbacks: {
+              onPaymentAuthorized: function (paymentData) {
+                return callPay(paymentData)
+                  .then(function (action) {
+                    if (action.kind === 'success') {
+                      postResult({ status: 'success', payResponse: {} })
+                    } else {
+                      postResult({ status: 'action', action: action })
+                    }
+                    return { transactionState: 'SUCCESS' }
+                  })
+                  .catch(function (err) {
+                    var message = err && err.message ? err.message : String(err)
+                    showError(message)
+                    postResult({ status: 'error', message: message })
+                    return {
+                      transactionState: 'ERROR',
+                      error: {
+                        reason: 'PAYMENT_DATA_INVALID',
+                        message: message,
+                        intent: 'PAYMENT_AUTHORIZATION'
+                      }
+                    }
+                  })
+              }
+            }
+          })
+
+          var request = withCallbackIntents(state.order.paymentScript)
+          client
+            .isReadyToPay({
+              apiVersion: request.apiVersion || 2,
+              apiVersionMinor: request.apiVersionMinor || 0,
+              allowedPaymentMethods: request.allowedPaymentMethods
+            })
+            .then(function (ready) {
+              if (!ready || !ready.result) {
+                showError('Google Pay not available on this device/browser')
+                return
+              }
+              var button = client.createButton({
+                onClick: function () {
+                  showError('')
+                  client.loadPaymentData(request).catch(function (err) {
+                    if (err && err.statusCode === 'CANCELED') return
+                    var message = err && err.message ? err.message : String(err)
+                    showError(message)
+                    postResult({ status: 'error', message: message })
+                  })
+                },
+                buttonColor: 'default',
+                buttonType: 'plain',
+                buttonSizeMode: 'fill'
+              })
+              var host = document.getElementById('googlePayButton')
+              host.innerHTML = ''
+              host.appendChild(button)
+            })
+            .catch(function (err) {
+              showError(err && err.message ? err.message : String(err))
+            })
+        }
+
+        window.addEventListener('message', function (event) {
+          var data = event.data
+          if (!data || data.type !== 'self-wallet:init') return
+          if (
+            !data.order ||
+            !data.order.paymentScript ||
+            !data.order.token ||
+            !data.order.orderNo
+          ) {
+            showError('self-wallet:init missing order.paymentScript / token / orderNo')
+            return
+          }
+          state.apiBase = data.apiBase || ''
+          state.order = data.order
+          state.parentOrigin = event.origin || '*'
+          if (!state.apiBase) {
+            showError('self-wallet:init missing apiBase')
+            return
+          }
+          mount()
+        })
+      })()
+    </script>
+  </body>
+</html>

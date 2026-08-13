@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>3DS Method</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 24px 16px;
+        font-family: -apple-system, system-ui, sans-serif;
+        color: #222;
+        background: #fff;
+      }
+      .title {
+        font-size: 18px;
+        font-weight: 700;
+        margin: 0 0 8px;
+      }
+      .tips {
+        font-size: 14px;
+        line-height: 1.4;
+        color: #444;
+        padding: 12px;
+        border: 1px solid rgba(255, 125, 0, 0.15);
+        background: rgba(255, 125, 0, 0.05);
+        border-radius: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <p class="title">Order processing</p>
+    <div class="tips">Please do not close or refresh. Bank verification may take a moment.</div>
+    <script>
+      /**
+       * Native 在壳页加载完成后注入并调用。
+       * @param {{ threeDSMethodData: string, methodUrl: string }} payload
+       */
+      window.__paySdkRenderMethod = function (payload) {
+        if (!payload || !payload.methodUrl || !payload.threeDSMethodData) {
+          console.error(
+            '[pay-sdk] __paySdkRenderMethod: missing methodUrl/threeDSMethodData',
+            payload
+          )
+          return
+        }
+        var existing = document.getElementById('paySdkMethodFrame')
+        if (existing) existing.remove()
+
+        var iframe = document.createElement('iframe')
+        iframe.id = 'paySdkMethodFrame'
+        iframe.name = 'paySdkMethodFrame'
+        iframe.width = '0'
+        iframe.height = '0'
+        iframe.style.display = 'none'
+        iframe.setAttribute('aria-hidden', 'true')
+        document.body.appendChild(iframe)
+
+        var form = document.createElement('form')
+        form.method = 'POST'
+        form.action = payload.methodUrl
+        form.target = 'paySdkMethodFrame'
+        form.style.display = 'none'
+        var input = document.createElement('input')
+        input.type = 'hidden'
+        input.name = 'threeDSMethodData'
+        input.value = payload.threeDSMethodData
+        form.appendChild(input)
+        document.body.appendChild(form)
+        form.submit()
+        form.remove()
+      }
+    </script>
+  </body>
+</html>

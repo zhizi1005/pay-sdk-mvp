@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>WorldPay DDC</title>
+    <!--
+      Cardinal Cruise Collect (WorldPay DDC).
+      Parent posts: { action: 'submitForm', Bin, JWT, actionUrl }
+      Parent must listen for Cardinal postMessage on its own window and parse SessionId
+      (origin = actionUrl origin). See self-wallet/html/README.md and WALLET_API.md.
+    -->
+  </head>
+  <body>
+    <form id="collectionForm" method="POST" action="">
+      <input type="hidden" name="Bin" value="" />
+      <input type="hidden" name="JWT" value="" />
+    </form>
+    <script>
+      window.addEventListener('message', function (event) {
+        if (event.data && event.data.action === 'submitForm') {
+          document.getElementById('collectionForm').action = event.data.actionUrl
+          document.querySelector('input[name="Bin"]').value = event.data.Bin || ''
+          document.querySelector('input[name="JWT"]').value = event.data.JWT || ''
+          document.getElementById('collectionForm').submit()
+        }
+      })
+    </script>
+  </body>
+</html>

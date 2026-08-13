@@ -17,12 +17,9 @@
 
 签名规范：[API Sign](https://alchemypay.readme.io/docs/api-sign)。创建订单之后的接口**不签名**，不要把 `appSecret` 放到客户端。
 
-### 环境根域名
+### API 根域名
 
-| 环境       | 根域名                            |
-| ---------- | --------------------------------- |
-| TEST       | `https://api-test.alchemytech.cc` |
-| PRODUCTION | `https://api.alchemypay.org`      |
+`https://api.alchemypay.org`
 
 完整 URL = 根域名 + 下文路径。
 
@@ -117,17 +114,17 @@ sequenceDiagram
 
 ### 3.2 响应 `data`（交给客户端）
 
-| 字段                  | 说明                                                                                        |
-| --------------------- | ------------------------------------------------------------------------------------------- |
-| `orderNo`             | 平台订单号                                                                                  |
-| `paymentScript`       | 官方 GP / AP 请求对象（见 §4）                                                              |
-| `token`               | 后续请求头 `payment-hub-token`                                                              |
-| `environment`         | 可选 `'TEST'` \| `'PRODUCTION'`；Google Pay `PaymentsClient.environment`；缺省按 PRODUCTION |
-| `method`              | 可选 `'googlePay'` \| `'applePay'`                                                          |
-| `risk`                | 可选；风控开关与可覆盖配置（见 §5）                                                         |
-| `validateMerchantUrl` | 仅 Apple；可选，覆盖默认域名校验 URL                                                        |
+| 字段                  | 说明                                                                                            |
+| --------------------- | ----------------------------------------------------------------------------------------------- |
+| `orderNo`             | 平台订单号                                                                                      |
+| `paymentScript`       | 官方 GP / AP 请求对象（见 §4）                                                                  |
+| `token`               | 后续请求头 `payment-hub-token`                                                                  |
+| `environment`         | 可选；Google Pay `PaymentsClient.environment`，生产为 `'PRODUCTION'`（未下发时也按 PRODUCTION） |
+| `method`              | 可选 `'googlePay'` \| `'applePay'`                                                              |
+| `risk`                | 可选；风控开关与可覆盖配置（见 §5）                                                             |
+| `validateMerchantUrl` | 仅 Apple；可选，覆盖默认域名校验 URL                                                            |
 
-安全下发：勿把 `appSecret` 放到前端。TEST 联调 Google Pay 请保证响应带 `environment: 'TEST'`。
+安全下发：勿把 `appSecret` 放到前端。
 
 ---
 
@@ -152,7 +149,7 @@ sequenceDiagram
 ### 4.2 我方约定（必须遵守）
 
 1. **`data.paymentScript` 即为官方请求对象**：Google 用作 `PaymentDataRequest`；Apple 用作 `ApplePaySession` 的 PaymentRequest。字段以创单下发为准。
-2. **`data.environment`**：仅 Google Pay 建 `PaymentsClient` 时使用；未下发按 `PRODUCTION`。也可出现在 `paymentScript.environment`，语义相同。
+2. **`data.environment`**：仅 Google Pay 建 `PaymentsClient` 时使用，生产传 `'PRODUCTION'`（未下发也按 PRODUCTION）。也可出现在 `paymentScript.environment`，语义相同。
 3. **Google Pay**：若走 Web 且与我方收银台行为对齐，建议 `callbackIntents: ['PAYMENT_AUTHORIZATION']`，并在 `onPaymentAuthorized` 内完成支付接口调用后再返回成功（创单若带了其它 intents，建议覆盖为上述值）。详见官方 Payment Authorization 说明。
 4. **拿到钱包结果后填支付接口**：
 
@@ -200,8 +197,7 @@ sequenceDiagram
 
 **POST** `{validateMerchantUrl}`；未下发时用：
 
-- TEST：`https://api-test.alchemytech.cc/payment-hub/domain/verify`
-- PRODUCTION：`https://api.alchemypay.org/payment-hub/domain/verify`
+`https://api.alchemypay.org/payment-hub/domain/verify`
 
 Apple 侧流程见官方 [Merchant validation](https://developer.apple.com/documentation/applepayontheweb/applepaysession/providing-merchant-validation)。
 
@@ -409,17 +405,16 @@ session.completeMerchantValidation(response.data)
 
 ### 7.1 Google Pay 兜底
 
-| 项                                       | 默认                                                 |
-| ---------------------------------------- | ---------------------------------------------------- |
-| `callbackIntents`                        | `['PAYMENT_AUTHORIZATION']`                          |
-| TEST `merchantInfo.merchantId`           | `863513232473669406`                                 |
-| TEST `merchantInfo.merchantName`         | `Example Merchant`                                   |
-| TEST `PAYMENT_GATEWAY.gateway`           | `unlimint`                                           |
-| TEST `PAYMENT_GATEWAY.gatewayMerchantId` | `googletest`                                         |
-| 缺省 auth / networks（仅极端缺字段时）   | `PAN_ONLY` + `CRYPTOGRAM_3DS`；`MASTERCARD` + `VISA` |
-| `apiVersion` / `apiVersionMinor`         | `2` / `0`                                            |
-| `totalPriceStatus`                       | `FINAL`                                              |
-| `totalPriceLabel`（兜底）                | `Total`                                              |
+| 项                                     | 默认                                                 |
+| -------------------------------------- | ---------------------------------------------------- |
+| `callbackIntents`                      | `['PAYMENT_AUTHORIZATION']`                          |
+| `PaymentsClient.environment`           | `PRODUCTION`                                         |
+| 缺省 auth / networks（仅极端缺字段时） | `PAN_ONLY` + `CRYPTOGRAM_3DS`；`MASTERCARD` + `VISA` |
+| `apiVersion` / `apiVersionMinor`       | `2` / `0`                                            |
+| `totalPriceStatus`                     | `FINAL`                                              |
+| `totalPriceLabel`（兜底）              | `Total`                                              |
+
+> 生产环境的 `merchantId` / `merchantName` / `gateway` / `gatewayMerchantId` 以创单 `paymentScript` 下发为准，勿使用测试商户占位值。
 
 ### 7.2 Apple Pay 兜底
 
@@ -432,23 +427,19 @@ session.completeMerchantValidation(response.data)
 | `total.type`                            | `final`                                          |
 | 需账单时 `requiredBillingContactFields` | `name`, `postalAddress`, `phone`, `email`        |
 
-### 7.3 风控默认
+### 7.3 风控默认（生产）
 
-| 厂商                      | 默认                                                                                    |
-| ------------------------- | --------------------------------------------------------------------------------------- |
-| Fingerprint `apiKey`      | `BhQq2qOOYR3oeMTEKIc2`                                                                  |
-| Fingerprint loader        | `https://fp.alchemypay.org/web/v3/BhQq2qOOYR3oeMTEKIc2/loader_v3.9.9.js`                |
-| Fingerprint endpoint      | `https://fp.alchemypay.org`                                                             |
-| Forter `siteId`           | `b132efccafac`                                                                          |
-| Checkout 生产 `publicKey` | `pk_aldlsnx6lhkjggag4qe2nff4c4h`                                                        |
-| Checkout 沙盒 `publicKey` | `pk_sbox_srkhzyxmotpo6vnfhqixvs66kyt`（`environment=TEST` 或 key 以 `pk_sbox_` 开头时） |
-| Checkout 生产 script      | `https://risk.checkout.com/cdn/risk/3.3.1/risk.js`                                      |
-| Checkout 沙盒 script      | `https://risk.sandbox.checkout.com/cdn/risk/3.3.1/risk.js`                              |
-| WorldPay `actionUrl`      | `https://centinelapi.cardinalcommerce.com/V1/Cruise/Collect`                            |
-| WorldPay `jwt` / `bin`    | 无默认；`jwt` 须由创单下发才可采集                                                      |
-
-Checkout 生产 SRI：`sha384-bdtH448zhkYQQTsR0FB6/ITKVZ1zdSi5Dv5NN5AILI1ZBIMJFsqKs8Upm6bWD+DL`  
-Checkout 沙盒 SRI：`sha384-NuldQYGHmN12FhNL/QlNXZ2H+T00OYzfkbbS8s6MvxpqOQUzRg48p+av2KjO8Yut`
+| 厂商                   | 默认                                                                      |
+| ---------------------- | ------------------------------------------------------------------------- |
+| Fingerprint `apiKey`   | `BhQq2qOOYR3oeMTEKIc2`                                                    |
+| Fingerprint loader     | `https://fp.alchemypay.org/web/v3/BhQq2qOOYR3oeMTEKIc2/loader_v3.9.9.js`  |
+| Fingerprint endpoint   | `https://fp.alchemypay.org`                                               |
+| Forter `siteId`        | `b132efccafac`                                                            |
+| Checkout `publicKey`   | `pk_aldlsnx6lhkjggag4qe2nff4c4h`                                          |
+| Checkout script        | `https://risk.checkout.com/cdn/risk/3.3.1/risk.js`                        |
+| Checkout SRI           | `sha384-bdtH448zhkYQQTsR0FB6/ITKVZ1zdSi5Dv5NN5AILI1ZBIMJFsqKs8Upm6bWD+DL` |
+| WorldPay `actionUrl`   | `https://centinelapi.cardinalcommerce.com/V1/Cruise/Collect`              |
+| WorldPay `jwt` / `bin` | 无默认；`jwt` 须由创单下发才可采集                                        |
 
 ### 7.4 其它
 
@@ -463,7 +454,7 @@ Checkout 沙盒 SRI：`sha384-NuldQYGHmN12FhNL/QlNXZ2H+T00OYzfkbbS8s6MvxpqOQUzRg
 ## 8. 检查清单
 
 - [ ] 服务端签名创建订单，响应含 `orderNo` / `paymentScript` / `token`
-- [ ] Google Pay TEST：响应含 `environment: 'TEST'`
+- [ ] Google Pay：`PaymentsClient.environment` 为 `PRODUCTION`（或未下发时按 PRODUCTION）
 - [ ] 客户端按官方文档唤起 GP/AP；`encryptedData` 映射正确
 - [ ] Apple：域名校验 + `completeMerchantValidation`；页面域已登记
 - [ ] 按 `risk.*.enabled` 自接风控；Header 带 `payment-hub-token`（及建议的 `fingerprint-id`）

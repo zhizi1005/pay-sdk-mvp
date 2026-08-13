@@ -22,7 +22,7 @@
 iframe.contentWindow.postMessage(
   {
     type: 'self-wallet:init',
-    apiBase: 'https://api-test.alchemytech.cc', // 或生产根域名
+    apiBase: 'https://api.alchemypay.org',
     order: {
       /* 创建订单响应 data：orderNo, paymentScript, token, environment, risk, validateMerchantUrl? */
     }

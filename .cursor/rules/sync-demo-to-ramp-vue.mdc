@@ -1,5 +1,5 @@
 ---
-description: When syncing demo to ramp-vue/public/demo, commit and push ramp-vue
+description: When syncing demo to ramp-vue/public/demo, use test branch then commit and push
 alwaysApply: true
 ---
 
@@ -7,8 +7,9 @@ alwaysApply: true
 
 When syncing `pay-sdk-mvp/demo` into `ramp-vue/public/demo`:
 
-1. Copy/sync files into `ramp-vue/public/demo`.
-2. **Commit** ramp-vue changes immediately (no need to wait for another ask).
-3. **Push** to the current remote tracking branch.
+1. **Switch to `test` first** (`git checkout test` / `git pull`). Do not sync demo onto `master` or the current unrelated branch.
+2. Copy/sync files into `ramp-vue/public/demo`.
+3. **Commit** ramp-vue changes immediately (no need to wait for another ask).
+4. **Push** to `test` (`git push -u origin test` if needed).
 
 Keep the commit message short and why-focused. No force-push.

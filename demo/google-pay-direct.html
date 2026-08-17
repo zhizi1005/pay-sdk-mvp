@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Google Pay DIRECT — OR_BIBED 回归</title>
+    <link rel="stylesheet" href="./common.css" />
+    <script src="https://pay.google.com/gp/p/js/pay.js"></script>
+  </head>
+  <body>
+    <p class="meta">
+      <a href="./index.html">创建订单</a> · <a href="./confirm.html">确认订单</a> ·
+      <a href="./confirm_mock.html">Mock 确认</a> · <a href="./result.html">订单结果</a> ·
+      <a href="./get-token-debug.html">getToken 调试</a> ·
+      <a href="./google-pay-direct.html">DIRECT GP</a>
+    </p>
+    <h1>Google Pay DIRECT（PRODUCTION）</h1>
+    <p class="meta">
+      写死 DIRECT + ECv2，不走创单 / 支付接口。用于在 App WebView 里回归：审核通过后是否还弹
+      <code>OR_BIBED_11</code>（须用 Play 内部测试签名包测才可信）。
+    </p>
+
+    <p id="status">准备中…</p>
+
+    <div class="confirm-footer" style="position: static; margin: 16px 0; box-shadow: none">
+      <button type="button" id="gpay-btn" disabled>加载 Google Pay…</button>
+    </div>
+
+    <details class="json-fold" open>
+      <summary class="section-title">PaymentDataRequest（写死）</summary>
+      <pre id="request-json">—</pre>
+    </details>
+
+    <details class="json-fold" open>
+      <summary class="section-title">结果 / 错误</summary>
+      <pre id="result">尚未调用</pre>
+    </details>
+
+    <script src="./vendor/vconsole.min.js"></script>
+    <script src="./demo-vconsole.js"></script>
+    <script>
+      ;(function () {
+        var GOOGLE_MERCHANT_ID = 'BCR2DN5TRCG6H2QZ'
+        var MERCHANT_NAME = 'Alchemy Pay Ramp'
+        var MERCHANT_PUBLIC_KEY =
+          'BE6v5sWsfYnUTgU+21rbWKcCAgPBuN8aR7k3b2tq+UMF6iuwHS1Px3maVxaRdbxUOn1HYuMWQ6Uvhc6/OhXE/p4='
+
+        var statusEl = document.getElementById('status')
+        var resultEl = document.getElementById('result')
+        var requestJsonEl = document.getElementById('request-json')
+        var gpayBtn = document.getElementById('gpay-btn')
+
+        var paymentDataRequest = {
+          apiVersion: 2,
+          apiVersionMinor: 0,
+          allowedPaymentMethods: [
+            {
+              type: 'CARD',
+              parameters: {
+                allowedAuthMethods: ['PAN_ONLY', 'CRYPTOGRAM_3DS'],
+                allowedCardNetworks: ['MASTERCARD', 'VISA']
+              },
+              tokenizationSpecification: {
+                type: 'DIRECT',
+                parameters: {
+                  protocolVersion: 'ECv2',
+                  publicKey: MERCHANT_PUBLIC_KEY
+                }
+              }
+            }
+          ],
+          merchantInfo: {
+            merchantId: GOOGLE_MERCHANT_ID,
+            merchantName: MERCHANT_NAME
+          },
+          transactionInfo: {
+            countryCode: 'US',
+            currencyCode: 'USD',
+            totalPriceStatus: 'FINAL',
+            totalPrice: '10.00',
+            totalPriceLabel: 'Total'
+          }
+        }
+
+        requestJsonEl.textContent = JSON.stringify(paymentDataRequest, null, 2)
+
+        function setStatus(text, highlight) {
+          statusEl.textContent = text
+          if (highlight) statusEl.classList.add('status-highlight')
+          else statusEl.classList.remove('status-highlight')
+        }
+
+        function classifyError(err) {
+          var msg = (err && (err.statusMessage || err.message)) || String(err || '')
+          var statusCode = err && err.statusCode
+          var upper = msg.toUpperCase()
+          if (upper.indexOf('OR_BIBED_11') !== -1) {
+            return {
+              code: 'OR_BIBED_11',
+              hint: 'App 未在 Google Pay Console 完成 Production 注册/审批（或未用过审签名包）'
+            }
+          }
+          if (upper.indexOf('OR_BIBED_13') !== -1) {
+            return {
+              code: 'OR_BIBED_13',
+              hint: '包签名 SHA-256 与 Console 记录不一致（常误填 Upload Key）'
+            }
+          }
+          if (upper.indexOf('OR_BIBED_15') !== -1) {
+            return {
+              code: 'OR_BIBED_15',
+              hint: 'WebView 未正确启用 Payment Request / Google Pay'
+            }
+          }
+          if (statusCode === 'CANCELED' || /cancel/i.test(msg)) {
+            return { code: 'CANCELED', hint: '用户取消' }
+          }
+          return { code: statusCode || 'ERROR', hint: msg }
+        }
+
+        if (!window.google || !google.payments || !google.payments.api) {
+          setStatus('Google Pay JS 未加载', true)
+          resultEl.textContent = 'pay.js 不可用'
+          return
+        }
+
+        var paymentsClient = new google.payments.api.PaymentsClient({
+          environment: 'PRODUCTION'
+        })
+
+        gpayBtn.disabled = false
+        gpayBtn.textContent = '唤起 Google Pay（DIRECT）'
+        setStatus('就绪 · PaymentsClient=PRODUCTION · tokenization=DIRECT', false)
+
+        gpayBtn.addEventListener('click', function () {
+          setStatus('正在 loadPaymentData…', false)
+          resultEl.textContent = '请求中…'
+          paymentsClient
+            .loadPaymentData(paymentDataRequest)
+            .then(function (paymentData) {
+              var token =
+                paymentData &&
+                paymentData.paymentMethodData &&
+                paymentData.paymentMethodData.tokenizationData &&
+                paymentData.paymentMethodData.tokenizationData.token
+              setStatus('成功：已拿到 DIRECT token（无 OR_BIBED_11）', true)
+              resultEl.textContent = JSON.stringify(
+                {
+                  ok: true,
+                  tokenPreview: token ? String(token).slice(0, 120) + '…' : null,
+                  paymentData: paymentData
+                },
+                null,
+                2
+              )
+              console.log('[google-pay-direct] paymentData', paymentData)
+            })
+            .catch(function (err) {
+              var info = classifyError(err)
+              var highlight = info.code.indexOf('OR_BIBED') === 0
+              setStatus(info.code + ' — ' + info.hint, highlight)
+              resultEl.textContent = JSON.stringify(
+                {
+                  ok: false,
+                  code: info.code,
+                  hint: info.hint,
+                  statusCode: err && err.statusCode,
+                  statusMessage: err && err.statusMessage,
+                  message: err && err.message,
+                  raw: String(err)
+                },
+                null,
+                2
+              )
+              console.error('[google-pay-direct] loadPaymentData error', err)
+            })
+        })
+      })()
+    </script>
+  </body>
+</html>

@@ -131,7 +131,7 @@ SDK 在 `ready` 后注册 `window.__paySdkSecondaryReturn`：Native 关栏后调
 
 流程：
 
-1. H5 `pay()` → `NativeBridge.openGooglePay(JSON.stringify(request))`
+1. H5 `pay()` → `NativeBridge.openGooglePay(JSON.stringify(request))`（必须作为对象方法调用，不可把函数赋给变量再调，否则 WebView 报 `non-injected object`）
 2. request 由 SDK 组装；**已去掉 `callbackIntents`**（原生无 `PaymentDataCallbacks`）；可能带顶层 `environment`（`TEST` \| `PRODUCTION`），Native 读完后须 **remove** 再 `PaymentDataRequest.fromJson`
 3. Native：`Wallet.getPaymentsClient` + `AutoResolveHelper.resolveTask(loadPaymentData, …)`
 4. 结果回 H5（须在主收银台 WebView 上 `evaluateJavascript`）：

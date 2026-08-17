@@ -296,8 +296,9 @@ export function createGoogleButton(config: RuntimeWalletConfig, onClick: () => v
  * Does not use JS loadPaymentData (avoids MIUI Payment Request Result loss).
  */
 async function payWithGoogleNative(config: RuntimeWalletConfig): Promise<void> {
-  const openGooglePay = window.NativeBridge?.openGooglePay
-  if (typeof openGooglePay !== 'function') {
+  // Must call as NativeBridge.openGooglePay(...) — Android WebView rejects a detached
+  // @JavascriptInterface function ("can't be invoked on a non-injected object").
+  if (!hasNativeGooglePay()) {
     throw new Error('NativeBridge.openGooglePay is not available')
   }
 
@@ -364,7 +365,7 @@ async function payWithGoogleNative(config: RuntimeWalletConfig): Promise<void> {
       }
 
       try {
-        openGooglePay(JSON.stringify(requestForNative))
+        window.NativeBridge!.openGooglePay!(JSON.stringify(requestForNative))
       } catch (err) {
         finish()
         reject(toError(err))

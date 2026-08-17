@@ -94,6 +94,7 @@ var bridge = window.NativeBridge
 | `openPayChallenge` | `shellUrl`, `jsonPayload`                               | 抽屉 `loadUrl(壳页)`，`onPageFinished` 注入 Challenge JSON |
 | `openPayMethod`    | `shellUrl`, `jsonPayload`                               | 同上，Method JSON                                          |
 | `closePayWebUrl`   | 无参                                                    | 关闭二级抽屉（幂等；Challenge/Method/webUrl 共用）         |
+| `openGooglePay`    | `requestJson`（PaymentDataRequest JSON 字符串）         | **Android 必实现**：原生 `PaymentsClient.loadPaymentData`  |
 
 不要用同名重载。壳页 URL **由 H5/商户传入**，不要写死在 Native。
 
@@ -113,10 +114,41 @@ class PayJsBridge {
 
   @JavascriptInterface
   fun closePayWebUrl() { /* dismiss */ }
+
+  @JavascriptInterface
+  fun openGooglePay(requestJson: String) {
+    // 主线程：PaymentDataRequest.fromJson → PaymentsClient.loadPaymentData
+    // AutoResolveHelper → onActivityResult → evaluateJavascript __paySdkGooglePayResult
+  }
 }
 ```
 
 SDK 在 `ready` 后注册 `window.__paySdkSecondaryReturn`：Native 关栏后调用可催原页立刻查单。
+
+### 4.2.1 Android 原生 Google Pay（`openGooglePay`）
+
+**所有 Android WebView 宿主都应实现**（不要按机型分支）。SDK 若检测到 `typeof NativeBridge.openGooglePay === 'function'`，则**不再**在 WebView 内调用 JS `loadPaymentData`（Payment Request），避免小米等 ROM 上 Wallet PIN 成功后 Result 丢失、再点报 `This method can only be called one at a time`、支付接口从未请求。
+
+流程：
+
+1. H5 `pay()` → `NativeBridge.openGooglePay(JSON.stringify(request))`
+2. request 由 SDK 组装；**已去掉 `callbackIntents`**（原生无 `PaymentDataCallbacks`）；可能带顶层 `environment`（`TEST` \| `PRODUCTION`），Native 读完后须 **remove** 再 `PaymentDataRequest.fromJson`
+3. Native：`Wallet.getPaymentsClient` + `AutoResolveHelper.resolveTask(loadPaymentData, …)`
+4. 结果回 H5（须在主收银台 WebView 上 `evaluateJavascript`）：
+
+```js
+window.__paySdkGooglePayResult({
+  status: 'SUCCESS', // 或 'CANCELED' | 'ERROR'
+  paymentData: {/* PaymentData.toJson() 解析后的对象 */},
+  message: '' // ERROR 时可选
+})
+```
+
+5. SDK 收到 `SUCCESS` 后走与浏览器路径相同的 `authorizePay` → 支付接口 → `onAction`（抽屉）
+
+纯浏览器 / 未注入 `openGooglePay` 的 App：仍走 JS Google Pay + `PAYMENT_AUTHORIZATION`。
+
+机型与故障说明见 [GOOGLE_PAY_ANDROID.md](./GOOGLE_PAY_ANDROID.md) §6。
 
 ### 4.3 哪些 action 走 Bridge
 
@@ -219,7 +251,7 @@ sdk.ready().then(function () {
 
 ### 无 Bridge 时
 
-正式 App WebView 必须注入完整 `NativeBridge`。缺失时提示用户升级 App，**不要**在收银台页做整页跳转打开 `webUrl` / `s3ds`。
+正式 App WebView 必须注入完整 `NativeBridge`（含 Android `openGooglePay`）。缺失时提示用户升级 App，**不要**在收银台页做整页跳转打开 `webUrl` / `s3ds`。
 
 ---
 
@@ -271,7 +303,7 @@ SDK 轮询**继续**；`onCancel` **不会**因此触发（`onCancel` 只表示�
 ## 9. 自检清单
 
 - [ ] Android 8.0+ / iOS 16+；iOS 使用 WKWebView
-- [ ] 注入 `NativeBridge`：四个方法齐全
+- [ ] 注入 `NativeBridge`：**五个**方法齐全（含 Android `openGooglePay`）
 - [ ] 底部抽屉二级 WebView，非当前页跳转
 - [ ] H5：`webUrl`/`s3ds` → Bridge；`threeDS`/`threeDSMethod` → 壳页 Bridge
 - [ ] 创建订单 `redirectUrl`；命中后 dismiss + `__paySdkSecondaryReturn`
@@ -279,4 +311,4 @@ SDK 轮询**继续**；`onCancel` **不会**因此触发（`onCancel` 只表示�
 - [ ] 未在收银台 WebView 对 `webUrl`/`s3ds` 做整页跳转
 - [ ] 联调确认原页仍在轮询 `order/detail`
 - [ ] 离开收银台 `sdk.destroy()` 并关抽屉
-- [ ] Google Pay **Production**：Pay Console App integration 已过审；WebView 已按官方启用 Payment Request（见 [GOOGLE_PAY_ANDROID.md](./GOOGLE_PAY_ANDROID.md)，`OR_BIBED_11` / `13` / `15`）
+- [ ] Google Pay **Production**：Pay Console App integration 已过审；Android 实现 `openGooglePay`（原生 PaymentsClient）；WebView 仍建议启用 Payment Request 供 `ready()` / 无 Bridge 回退（见 [GOOGLE_PAY_ANDROID.md](./GOOGLE_PAY_ANDROID.md)）

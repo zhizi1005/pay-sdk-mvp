@@ -204,13 +204,13 @@ API 根域名：`https://api.alchemypay.org`
 
 ## 5. 实例方法
 
-| 方法                   | 说明                                                               |
-| ---------------------- | ------------------------------------------------------------------ |
-| `RampPay.init(config)` | 校验配置并返回实例                                                 |
-| `sdk.ready()`          | 规范化订单、预采风控、检查钱包可用；**resolve = 可点击 / 可唤起**  |
-| `sdk.mount()`          | 在 `container` 渲染官方支付按钮（须先传 `container`）              |
-| `sdk.pay()`            | 同步唤起钱包 sheet；自定义按钮在用户点击回调内调用；须先 `ready()` |
-| `sdk.destroy()`        | 移除官方按钮（若有）、清理 iframe 与轮询                           |
+| 方法                   | 说明                                                                                                                                                                                                                       |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RampPay.init(config)` | 校验配置并返回实例                                                                                                                                                                                                         |
+| `sdk.ready()`          | 规范化订单、预采风控、检查钱包可用；**resolve = 可点击 / 可唤起**                                                                                                                                                          |
+| `sdk.mount()`          | 在 `container` 渲染官方支付按钮（须先传 `container`）                                                                                                                                                                      |
+| `sdk.pay()`            | 同步唤起钱包；自定义按钮在用户点击回调内调用；须先 `ready()`。**Android App**：若已注入 `NativeBridge.openGooglePay`，走原生 PaymentsClient（见 [WEBVIEW.md](./WEBVIEW.md) §4.2.1）；否则走 JS Google Pay。浏览器始终走 JS |
+| `sdk.destroy()`        | 移除官方按钮（若有）、清理 iframe 与轮询                                                                                                                                                                                   |
 
 二次动作见 §6：纯浏览器可用 `actionMode: 'auto'`；App 见 [WEBVIEW.md](./WEBVIEW.md)。**不要**在收银台 WebView 内对 `webUrl` / `s3ds` 做整页跳转。
 
@@ -291,7 +291,7 @@ RampPay.init({
 - [ ] 实现 `onSuccess` / `onError` / `onCancel` / `onAction`
 - [ ] 纯浏览器：需要 SDK 自动打开二次动作时设 `actionMode: 'auto'`（见 §6.1）
 - [ ] App：`actionMode: 'callback'`（默认）+ 按 [WEBVIEW.md](./WEBVIEW.md) 实现 Bridge；`webUrl`/`s3ds` 不在收银台做整页跳转
-- [ ] Android Google Pay Production：Pay Console App integration 已过审（`OR_BIBED_11` / `13` / `15` 见 [GOOGLE_PAY_ANDROID.md](./GOOGLE_PAY_ANDROID.md)）
+- [ ] Android Google Pay：实现 `NativeBridge.openGooglePay` + Pay Console App integration（见 [GOOGLE_PAY_ANDROID.md](./GOOGLE_PAY_ANDROID.md)；勿仅依赖 WebView JS sheet）
 - [ ] 创建订单带 `redirectUrl`（及如需的 `callbackUrl`）；回跳后调 `__paySdkSecondaryReturn()`
 - [ ] 离开支付页 `sdk.destroy()`，并关闭未关的抽屉
 - [ ] 业务接口 `returnCode === '0000'` 联调通过

@@ -63,42 +63,12 @@ Google 未为每个 `OR_BIBED_*` 提供独立深链；定义集中在故障排�
 
 ---
 
-## 5. Android App：必须用原生 Google Pay（`openGooglePay`）
-
-仅开启 WebView Payment Request **不够**保证出 token。Pay SDK 要求 Android 宿主实现 `NativeBridge.openGooglePay`，用 Play Services **原生 `PaymentsClient`** 出 token，再经 `__paySdkGooglePayResult` 回 H5 打支付接口。契约见 [WEBVIEW.md §4.2.1](./WEBVIEW.md)。
-
-仍建议保留 WebView `setPaymentRequestEnabled(true)` + manifest `queries`：供 `ready()` 的 JS `isReadyToPay`，以及未升级 App 的回退。
-
----
-
-## 6. Sheet 能弹出，但 PIN 后无支付接口 / `one at a time`
-
-**不是** `OR_BIBED_11` / `13` / `15`。典型现象：
-
-1. Production Google Pay sheet 能弹出（说明 App 审批与 Payment Request 已过）
-2. 点付款 → Wallet 指纹 / PIN 成功
-3. Wallet 关闭后仍停在 Pay sheet；**支付接口从未请求**
-4. 再点付款 → `This method can only be called one at a time`
-
-原因：WebView JS `loadPaymentData` 走 Payment Request → GMS `IbLoadWebPaymentDataWithPayIntentActivity` → 另开 `GenericDelegatorInternalActivityX` 做验证。部分 OEM（尤其 MIUI / HyperOS）在验证 Activity 回来后 **未把 Result 交回 WebView**，第一次 `loadPaymentData` 一直挂起；去掉 `PAYMENT_AUTHORIZATION` **修不好**（卡在 token 回到页面前）。
-
-| 类型        | 机型 / 系统                                                   | JS WebView 路径                  |
-| ----------- | ------------------------------------------------------------- | -------------------------------- |
-| 已确认必现  | 小米 / Redmi / POCO（MIUI / HyperOS）                         | PIN 后丢 Result                  |
-| 高风险      | OPPO / 一加（ColorOS）、vivo（OriginOS）、有 GMS 的华为、魅族 | 同类后台弹窗 / Activity 生命周期 |
-| JS 往往可用 | 三星 One UI、Pixel                                            | 验证多在 sheet 内完成            |
-
-**商户规则：所有 Android WebView 都实现原生 `openGooglePay`，不要按机型分支。** SDK 有该方法则走原生；没有则回退 JS（Chrome / 旧 App）。
-
----
-
-## 7. 官方参考链接
+## 5. 官方参考链接
 
 - [Android Troubleshooting](https://developers.google.com/pay/api/android/support/troubleshooting)（`OR_BIBED_11` / `13` / `15` 等）
 - [Web Troubleshooting](https://developers.google.com/pay/api/web/support/troubleshooting)（含 `OR_BIBED_15`）
 - [Publish your integration](https://developers.google.com/pay/api/android/guides/test-and-deploy/publish-your-integration)
 - [Using Android WebView](https://developers.google.com/pay/api/android/guides/recipes/using-android-webview)
-- [Google Pay Android client](https://developers.google.com/pay/api/android/reference/client)（原生 `PaymentsClient`）
 - [Sign your app](https://developer.android.com/studio/publish/app-signing)
 - [Google Pay Console](https://pay.google.com/business/console)
 - [Play App Signing](https://support.google.com/googleplay/android-developer/answer/9842754)

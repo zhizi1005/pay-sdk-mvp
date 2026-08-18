@@ -31,9 +31,7 @@
   <body>
     <p class="meta">
       <a href="./index.html">创建订单</a> · <a href="./confirm.html">确认订单</a> ·
-      <a href="./confirm_mock.html">Mock 确认</a> · <a href="./result.html">订单结果</a> ·
-      <a href="./get-token-debug.html">getToken 调试</a> ·
-      <a href="./google-pay-direct.html">DIRECT GP</a>
+      <a href="./result.html">订单结果</a>
     </p>
     <h1>创建订单</h1>
     <details class="json-fold">
@@ -202,28 +200,6 @@
       <button type="button" id="regen-order-no">重新生成 merchantOrderNo</button>
       <button type="button" id="apply-btn">确认创建订单</button>
     </div>
-
-    <details class="json-fold" open>
-      <summary class="section-title">Mock：粘贴创建订单返回 → confirm_mock</summary>
-      <p class="meta">
-        不调创建订单。粘贴浏览器 Network 中创建订单接口的<strong>完整 JSON</strong>（含
-        <code>returnCode</code>、<code>data</code> 等）。确认后写入 session，跳转
-        <a href="./confirm_mock.html">confirm_mock.html</a>，用于 mock 支付接口返回后的二次动作。
-        <code>environment</code> / <code>actionMode</code> 复用上方选项。
-      </p>
-      <div class="panel">
-        <label class="block" for="mock-create-order-json">创建订单接口返回 JSON</label>
-        <textarea
-          id="mock-create-order-json"
-          rows="12"
-          spellcheck="false"
-          placeholder='{"success":true,"returnCode":"0000","returnMsg":"SUCCESS","data":{"orderNo":"...","token":"...","paymentScript":{...}},"traceId":"..."}'
-        ></textarea>
-        <div class="demo-actions">
-          <button type="button" id="mock-go-btn">进入 Mock 确认</button>
-        </div>
-      </div>
-    </details>
 
     <details class="json-fold">
       <summary class="section-title">将提交的创建订单请求</summary>
@@ -486,7 +462,6 @@
         const orderResponse = createResult.data
         orderResponseEl.textContent = JSON.stringify(orderResponse, null, 2)
         ui.showTraceId(createResult.traceId)
-        // Full envelope for Mock paste (index → confirm_mock)
         console.log(
           '[demo] 创建订单接口返回（完整 JSON，可复制）',
           createResult.envelope || orderResponse
@@ -515,92 +490,6 @@
         location.href = './confirm.html'
       }
 
-      function unwrapApiPayload(parsed) {
-        if (
-          parsed &&
-          typeof parsed === 'object' &&
-          parsed.data != null &&
-          typeof parsed.data === 'object'
-        ) {
-          return { envelope: parsed, data: parsed.data }
-        }
-        return { envelope: null, data: parsed }
-      }
-
-      function defaultRedirectUrls() {
-        return {
-          redirectUrl: 'https://ramp-test.alchemytech.cc/demo/redirectUrl.html',
-          callbackUrl: 'https://ramp-test.alchemytech.cc/demo/callBackUrl.html'
-        }
-      }
-
-      function goMockConfirm() {
-        statusEl.classList.remove('status-highlight')
-        const raw = String(
-          (document.getElementById('mock-create-order-json') || {}).value || ''
-        ).trim()
-        if (!raw) {
-          setStatus('请粘贴创建订单接口返回的完整 JSON', false)
-          return
-        }
-
-        let parsed
-        try {
-          parsed = JSON.parse(raw)
-        } catch (err) {
-          setStatus('JSON 解析失败：' + (err && err.message ? err.message : err), false)
-          return
-        }
-
-        const unwrapped = unwrapApiPayload(parsed)
-        const envelope = unwrapped.envelope
-        const data = unwrapped.data
-        if (!data || typeof data !== 'object') {
-          setStatus('创建订单 JSON 缺少有效 data', false)
-          return
-        }
-        if (envelope && envelope.returnCode != null && String(envelope.returnCode) !== '0000') {
-          setStatus(
-            '创建订单 returnCode=' + envelope.returnCode + '：' + (envelope.returnMsg || '失败'),
-            false
-          )
-          return
-        }
-        const orderNo = data.orderNo
-        const token = typeof data.token === 'string' ? data.token.trim() : ''
-        if (!orderNo || !token) {
-          setStatus('data 须含 orderNo 与 token（payment-hub-token）', false)
-          return
-        }
-
-        const fd = new FormData(form)
-        const environment = fd.get('environment') || 'TEST'
-        const actionMode = fd.get('actionMode') || 'callback'
-        const method = data.method || fd.get('method') || 'googlePay'
-        const defaults = defaultRedirectUrls()
-        const orderRequest = {
-          redirectUrl: defaults.redirectUrl,
-          callbackUrl: defaults.callbackUrl,
-          merchantOrderNo: data.merchantOrderNo || ''
-        }
-
-        if (envelope && envelope.traceId) ui.showTraceId(envelope.traceId)
-        orderResponseEl.textContent = JSON.stringify(data, null, 2)
-
-        session.clearResult()
-        session.setFlow({
-          environment: environment,
-          actionMode: actionMode,
-          method: method,
-          orderRequest: orderRequest,
-          createOrderResponse: data,
-          mock: true,
-          createdAt: Date.now()
-        })
-        setStatus('已写入 session，跳转 Mock 确认…', true)
-        location.href = './confirm_mock.html'
-      }
-
       applyDefaults()
       form.addEventListener('change', refreshPreview)
       form.addEventListener('input', refreshPreview)
@@ -610,9 +499,6 @@
       })
       document.getElementById('apply-btn').addEventListener('click', function () {
         void createOrderAndGo()
-      })
-      document.getElementById('mock-go-btn').addEventListener('click', function () {
-        goMockConfirm()
       })
       refreshPreview()
       void fillClientIp().then(function () {

@@ -692,23 +692,15 @@ declare global {
       describeS3ds: typeof describeS3ds
       describePayResponse: typeof describePayResponse
     }
-    /** App WebView Bridge（抽屉 + 原生 Google Pay） */
+    /** App WebView Bridge（抽屉） */
     NativeBridge?: {
       openPayWebUrl?: (url: string, redirectUrl: string, callbackUrl: string) => void
       openPayChallenge?: (shellUrl: string, jsonPayload: string) => void
       openPayMethod?: (shellUrl: string, jsonPayload: string) => void
       closePayWebUrl?: () => void
-      /** Android 原生 PaymentsClient；有则 SDK 不再用 JS loadPaymentData */
-      openGooglePay?: (requestJson: string) => void
     }
     /** Native 二级页命中 redirect/callback 后调用，催原页立刻查单 */
     __paySdkSecondaryReturn?: () => void
-    /** Native Google Pay 结果回传（openGooglePay 完成后调用） */
-    __paySdkGooglePayResult?: (payload: {
-      status: 'SUCCESS' | 'CANCELED' | 'ERROR'
-      paymentData?: google.payments.api.PaymentData
-      message?: string
-    }) => void
   }
 }
 

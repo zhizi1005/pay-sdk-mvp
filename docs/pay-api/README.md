@@ -49,13 +49,15 @@
 
 ```mermaid
 sequenceDiagram
-  participant M as Client_or_SDK
+  participant MerchantServer
+  participant M as Cashier_or_SDK
   participant API as Backend
   participant Wallet as Google_or_Apple
   participant Page as WebUrl_or_3DS_Page
 
-  M->>API: 1 创建订单 POST
-  API-->>M: paymentScript + risk
+  MerchantServer->>API: 1 创建订单 POST
+  API-->>MerchantServer: paymentScript + risk + token
+  MerchantServer-->>M: createOrder response
   alt applePay
     M->>Wallet: begin session
     Wallet->>M: onvalidatemerchant
@@ -73,26 +75,28 @@ sequenceDiagram
     M->>Page: 打开对应页面
     loop 轮询
       M->>API: 4 查询订单 GET
-      API-->>M: status / s3dsUrl / s3dsComplete
+      API-->>M: orderState / s3dsUrl / s3dsComplete
     end
   end
 ```
 
 ### 接口 3 支付结果分支
 
-| 条件                                 | 客户端动作                                                                     | 是否轮询接口 4 |
-| ------------------------------------ | ------------------------------------------------------------------------------ | -------------- |
-| `returnCode !== '0000'`              | 失败，吐出 `returnMsg`                                                         | **否**         |
-| `data` 无二次动作字段                | 成功回调                                                                       | **否**         |
-| 有 `webUrl`                          | `onAction(webUrl)`；App 用 Bridge 抽屉打开，勿 `sdk.openAction`                | **是**         |
-| 有 `MD` + `JWT` + `action`           | `onAction(threeDS)`；App 推荐 Challenge 壳页 Bridge，浏览器可 `sdk.openAction` | **是**         |
-| 有 `threeDSMethodData` + `methodUrl` | `onAction(threeDSMethod)`；App 推荐 Method 壳页 Bridge                         | **是**         |
+| 条件                                 | 客户端动作                                                                                                 | 是否轮询接口 4 |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------- | -------------- |
+| `returnCode !== '0000'`              | 失败，吐出 `returnMsg`                                                                                     | **否**         |
+| `data` 无二次动作字段                | 成功回调（`onSuccess`，随后 `onComplete`）                                                                 | **否**         |
+| 有 `webUrl`                          | `onAction(webUrl)`；App 用 Bridge 抽屉打开；纯浏览器 callback 模式可手动 `sdk.openAction(action)`          | **是**         |
+| 有 `MD` + `JWT` + `action`           | `onAction(threeDS)`；App 推荐 Challenge 壳页 Bridge；纯浏览器 callback 模式可手动 `sdk.openAction(action)` | **是**         |
+| 有 `threeDSMethodData` + `methodUrl` | `onAction(threeDSMethod)`；App 推荐 Method 壳页 Bridge                                                     | **是**         |
 
 ### 接口 4 轮询规则（建议间隔 2s）
 
-1. 有 `s3dsUrl` → **跳转**该地址继续完成验证（轮询可继续）
-2. `status` 为终态（`succeeded` / `failed`），或 `s3dsComplete === true` → **停止轮询**，通知商户跳转对应结果页
-3. 否则继续轮询
+1. 有 `s3dsUrl` → SDK 触发 `onAction(s3ds)`；App 用 Bridge 打开，纯浏览器 `actionMode: 'auto'` 时 SDK 会整页导航
+2. `orderState === 1` 且 `s3dsComplete !== true` → 继续轮询
+3. `orderState` 属于成功态 `{2,5}` → `onSuccess`，随后 `onComplete`
+4. `orderState` 属于失败态 `{0,6,7,8,9,10,11}` → `onError`
+5. 其它非 pending（如 `3` / `4` `TRANSFER`）或仅 `s3dsComplete === true` → `onComplete`
 
 ---
 
@@ -154,7 +158,7 @@ SDK 固定使用 `callbackIntents: ['PAYMENT_AUTHORIZATION']`，并注册
 
 **POST** 创建订单返回的 `validateMerchantUrl`；未返回时使用当前环境的内置地址。
 
-### 请求
+### 请求载荷
 
 ```ts
 {
@@ -165,7 +169,7 @@ SDK 固定使用 `callbackIntents: ['PAYMENT_AUTHORIZATION']`，并注册
 
 两字段均必填。`orderNo` 为创建订单返回的订单号；`validationURL` 为 Apple `onvalidatemerchant` 原样转发。
 
-### 响应
+### 响应载荷
 
 统一壳；`returnCode === '0000'` 时 **`data` 即为 `merchantSession`**（Apple opaque）。  
 客户端：`completeMerchantValidation(response.data)`。
@@ -180,7 +184,7 @@ SDK 固定使用 `callbackIntents: ['PAYMENT_AUTHORIZATION']`，并注册
 
 对齐 ramp-vue；Apifox 493859922 成功示例不可信。
 
-### 请求
+### 请求体
 
 ```ts
 {
@@ -204,7 +208,7 @@ SDK 固定使用 `callbackIntents: ['PAYMENT_AUTHORIZATION']`，并注册
 
 SDK 从钱包结果映射：`encryptedData` → `customParam`；账单扁平进 `customParam` 与 `poaParams`；`risk.forter/checkout/worldPay` → `businessParams` / `sessionId`。
 
-### 响应 `data`
+### 响应 `data` 字段
 
 | 字段                              | 说明            |
 | --------------------------------- | --------------- |
@@ -222,17 +226,17 @@ SDK 从钱包结果映射：`encryptedData` → `customParam`；账单扁平进 
 
 **GET** `/payment-hub/order/detail`（凭 `payment-hub-token`，无 query）
 
-### 响应 `data`
+### 查询响应 `data` 字段
 
-| 字段            | 说明                                                           |
-| --------------- | -------------------------------------------------------------- |
-| `orderNo`       | 订单号                                                         |
-| `orderState`    | 数字状态（兼容 `orderStatus`）；见 `ON_RAMP_ORDER_STATUS_MAP`  |
-| `s3dsUrl`       | 有则 `onAction`；导航成功停轮询（H5 有，Apifox schema 可能缺） |
-| `s3dsComplete`  | `true` 时停止轮询                                              |
-| `failureReason` | 失败原因（可选）                                               |
+| 字段            | 说明                                                                                             |
+| --------------- | ------------------------------------------------------------------------------------------------ |
+| `orderNo`       | 订单号                                                                                           |
+| `orderState`    | 数字状态（兼容 `orderStatus`）；见 `ON_RAMP_ORDER_STATUS_MAP`                                    |
+| `s3dsUrl`       | 有则 `onAction`；仅纯浏览器 `actionMode: 'auto'` 导航离页时停轮询（H5 有，Apifox schema 可能缺） |
+| `s3dsComplete`  | `true` 时停止轮询                                                                                |
+| `failureReason` | 失败原因（可选）                                                                                 |
 
-轮询：仅 `orderState === 1` 且未 `s3dsComplete` 时继续；`{0,6,7,8,9,10,11}` → 失败；`{2,5}` → 成功。
+轮询：仅 `orderState === 1` 且未 `s3dsComplete` 时继续；`{0,6,7,8,9,10,11}` → 失败；`{2,5}` → 成功；`{3,4}` 或仅 `s3dsComplete` → `onComplete`。
 
 见 [`query-order.ts`](./query-order.ts)。
 

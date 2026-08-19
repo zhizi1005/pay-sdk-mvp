@@ -210,9 +210,13 @@ API 根域名：`https://api.alchemypay.org`
 | `sdk.ready()`          | 规范化订单、预采风控、检查钱包可用；**resolve = 可点击 / 可唤起**                                                                                                                              |
 | `sdk.mount()`          | 在 `container` 渲染官方支付按钮（须先传 `container`）                                                                                                                                          |
 | `sdk.pay()`            | 同步唤起钱包；自定义按钮在用户点击回调内调用；须先 `ready()`。Google Pay 使用 JS `loadPaymentData` + `PAYMENT_AUTHORIZATION`；浏览器与 App WebView 的二次动作接入见 [WEBVIEW.md](./WEBVIEW.md) |
+| `sdk.openAction()`     | 用 SDK 内置打开器执行二次动作；适合**纯浏览器 callback 模式**下，商户在 `onAction` 收到动作后稍后手动调用                                                                                      |
+| `sdk.getLastTraceId()` | 返回最近一次 openapi 响应的 `traceId`（成功或失败）；便于联调时带给平台排障                                                                                                                    |
 | `sdk.destroy()`        | 移除官方按钮（若有）、清理 iframe 与轮询                                                                                                                                                       |
 
 二次动作见 §6：纯浏览器可用 `actionMode: 'auto'`；App 见 [WEBVIEW.md](./WEBVIEW.md)。**不要**在收银台 WebView 内对 `webUrl` / `s3ds` 做整页跳转。
+
+`window.__paySdkSecondaryReturn()` 由 SDK 在 `ready()` 后挂到主收银台页。App 二级页命中 `redirectUrl` / `callbackUrl` 并关栏后，应调用它催主页立刻查单。
 
 ---
 
@@ -265,13 +269,28 @@ RampPay.init({
 
 ## 7. 回调与结果
 
-编排成功时一般看 `orderNo`、`order.orderState`；不必再自己调支付接口。
+业务成功以 `onSuccess` 为准；`onComplete` 表示本次编排结束，但**不等于一定支付成功**。
 
-- `onSuccess(result)`：支付直接成功，或轮询查单到成功态
-- `onComplete(result)`：编排结束（含 `s3dsComplete` 但未必终态）
-- `onError(error)`：API / 钱包失败、查单失败态、超时等；`error.message` 可读
-- `onCancel()`：用户关闭 Google / Apple Pay 钱包 sheet（未完成授权）
-- `onAction(action)`：需二次动作（`webUrl` / `s3ds` / `threeDS` / `threeDSMethod`）；默认由商户打开，或见 §6 `actionMode`
+### 7.1 回调矩阵
+
+| 场景                                                                                        | 回调                                           |
+| ------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| 无二次动作且支付直接成功，或查单 `orderState` 为 `2` / `5`                                  | `onSuccess(result)`，随后 `onComplete(result)` |
+| 查单 `orderState` 为 `0` / `6` / `7` / `8` / `9` / `10` / `11`，或 API / 钱包失败、轮询超时 | `onError(error)`                               |
+| 查单 `orderState` 为 `3` / `4`（`TRANSFER`），或仅 `s3dsComplete === true`                  | **仅** `onComplete(result)`                    |
+| 用户关闭 Google / Apple Pay 钱包 sheet（未完成授权）                                        | `onCancel()`                                   |
+| 需二次动作（`webUrl` / `s3ds` / `threeDS` / `threeDSMethod`）                               | `onAction(action)`                             |
+
+### 7.2 `orderState` 速查
+
+| `orderState`                              | 含义                              | SDK 回调语义               |
+| ----------------------------------------- | --------------------------------- | -------------------------- |
+| `1`                                       | `PENDING`                         | 继续轮询                   |
+| `2` / `5`                                 | `PAY_SUCCESS` / `FINISHED`        | `onSuccess` + `onComplete` |
+| `3` / `4`                                 | `TRANSFER`                        | 仅 `onComplete`            |
+| `0` / `6` / `7` / `8` / `9` / `10` / `11` | 失败 / 取消 / 风控 / 退款等失败态 | `onError`                  |
+
+编排完成时一般看 `orderNo`、`order.orderState`；不必再自己调支付接口。
 
 ---
 
@@ -279,6 +298,17 @@ RampPay.init({
 
 - Fingerprint：`init` 采集，请求头 `fingerprint-id`
 - Forter / Checkout / WorldPay：创建订单 `risk.*.enabled === true` 时在 `ready()` 预采集
+
+### 8.1 排查要点
+
+- 风控采集**失败不阻断支付**；对应字段可能为空，是否拦截取决于渠道或商户侧规则
+- 域名 / 脚本白名单：允许加载 Fingerprint、Checkout Risk.js、Forter、Cardinal / WorldPay DDC 等相关脚本
+- WebView：开启 JavaScript；不要拦截隐藏 iframe / form POST，WorldPay DDC 依赖它们
+- Cookie / 存储：Forter token 依赖 cookie；限制第三方 Cookie 时可能采不到
+- 创建订单 `risk.*.enabled === true` 才会采集；WorldPay 至少需下发动态 `jwt`
+- 联调时建议同时检查请求头 `fingerprint-id` 与支付 body 中 `businessParams.cookie` / `checkoutCookie` / `sessionId` 是否有值
+
+Apple Pay iOS / WKWebView 侧要求见 [APPLE_PAY_IOS.md](./APPLE_PAY_IOS.md)；App 抽屉与 Bridge 细节见 [WEBVIEW.md](./WEBVIEW.md)。
 
 ---
 

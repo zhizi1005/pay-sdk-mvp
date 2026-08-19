@@ -86,7 +86,54 @@ H5：`window.NativeBridge`。
 var bridge = window.NativeBridge
 ```
 
-### 4.2 方法（给 `@JavascriptInterface`）
+iOS 也建议在 H5 侧暴露同名 `window.NativeBridge`，把调用转发到 `WKScriptMessageHandler`，这样 H5 代码可与 Android 共用：
+
+```swift
+final class NativeBridge: NSObject, WKScriptMessageHandler {
+  func userContentController(
+    _ userContentController: WKUserContentController,
+    didReceive message: WKScriptMessage
+  ) {
+    // message.body: { method: "openPayWebUrl", args: [...] }
+  }
+}
+
+let controller = WKUserContentController()
+controller.add(NativeBridge(), name: "NativeBridge")
+let config = WKWebViewConfiguration()
+config.userContentController = controller
+```
+
+```js
+window.NativeBridge = {
+  openPayWebUrl(url, redirectUrl, callbackUrl) {
+    window.webkit.messageHandlers.NativeBridge.postMessage({
+      method: 'openPayWebUrl',
+      args: [url, redirectUrl, callbackUrl]
+    })
+  },
+  openPayChallenge(shellUrl, jsonPayload) {
+    window.webkit.messageHandlers.NativeBridge.postMessage({
+      method: 'openPayChallenge',
+      args: [shellUrl, jsonPayload]
+    })
+  },
+  openPayMethod(shellUrl, jsonPayload) {
+    window.webkit.messageHandlers.NativeBridge.postMessage({
+      method: 'openPayMethod',
+      args: [shellUrl, jsonPayload]
+    })
+  },
+  closePayWebUrl() {
+    window.webkit.messageHandlers.NativeBridge.postMessage({
+      method: 'closePayWebUrl',
+      args: []
+    })
+  }
+}
+```
+
+### 4.2 方法（Android `@JavascriptInterface` / iOS message handler 共用）
 
 | 方法               | 参数                                                    | 说明                                                       |
 | ------------------ | ------------------------------------------------------- | ---------------------------------------------------------- |
@@ -136,7 +183,7 @@ SDK 在 `ready` 后注册 `window.__paySdkSecondaryReturn`：Native 关栏后调
 | [`html/3ds-challenge.html`](./html/3ds-challenge.html) | `__paySdkRenderChallenge({ MD, JWT, action })`           | POST MD/JWT → action |
 | [`html/3ds-method.html`](./html/3ds-method.html)       | `__paySdkRenderMethod({ threeDSMethodData, methodUrl })` | 隐藏 iframe POST     |
 
-Native 注入建议：将 `jsonPayload` Base64 后 `evaluateJavascript`，避免引号转义。
+Native 注入建议：将 `jsonPayload` Base64 后 `evaluateJavascript`，避免引号转义。iOS / Android 都保持同一方法名与参数顺序，H5 更容易复用。
 
 ---
 
@@ -255,6 +302,12 @@ SDK 轮询**继续**；`onCancel` **不会**因此触发（`onCancel` 只表示�
 4. 二级与主 WebView Cookie 默认隔离；按渠道配置第三方 Cookie（若需要）。
 5. 收银台销毁时 H5 调 `sdk.destroy()`，并关掉未关的抽屉。
 
+iOS 补充：
+
+1. 用 `WKWebView` + `WKUserContentController` 注入同名 `NativeBridge`
+2. `redirectUrl` / `callbackUrl` 命中后，在主 WebView 执行 `window.__paySdkSecondaryReturn()`
+3. H5 Apple Pay 走 `ApplePaySession`；不是首页原生 PassKit 按钮，详见 [APPLE_PAY_IOS.md](./APPLE_PAY_IOS.md)
+
 ---
 
 ## 8. 与 SDK 行为对齐（勿踩坑）
@@ -271,7 +324,7 @@ SDK 轮询**继续**；`onCancel` **不会**因此触发（`onCancel` 只表示�
 ## 9. 自检清单
 
 - [ ] Android 8.0+ / iOS 16+；iOS 使用 WKWebView
-- [ ] 注入 `NativeBridge`：四个方法齐全
+- [ ] 注入 `NativeBridge`：Android `JavascriptInterface` / iOS `messageHandlers` 都对外暴露同名四方法
 - [ ] 底部抽屉二级 WebView，非当前页跳转
 - [ ] H5：`webUrl`/`s3ds` → Bridge；`threeDS`/`threeDSMethod` → 壳页 Bridge
 - [ ] 创建订单 `redirectUrl`；命中后 dismiss + `__paySdkSecondaryReturn`
@@ -279,4 +332,5 @@ SDK 轮询**继续**；`onCancel` **不会**因此触发（`onCancel` 只表示�
 - [ ] 未在收银台 WebView 对 `webUrl`/`s3ds` 做整页跳转
 - [ ] 联调确认原页仍在轮询 `order/detail`
 - [ ] 离开收银台 `sdk.destroy()` 并关抽屉
+- [ ] iOS H5 Apple Pay 用真机 + Wallet + 已校验域名；不要把原生 PassKit 演示当成 SDK 路径
 - [ ] Google Pay **Production**：Pay Console **Domain + App** 均已过审；WebView 正确启用 Payment Request（见 [GOOGLE_PAY_ANDROID.md](./GOOGLE_PAY_ANDROID.md)）

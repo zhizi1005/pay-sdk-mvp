@@ -25,7 +25,7 @@
 - **缺口**：不支持 Card（如 payWay `10001`），以及其他 S2S 对应的 local 支付方式。
 - **后续计划**：后续迭代扩展；与现有钱包编排解耦实现。
 
-### 4. 风控采集依赖商户环境（Fingerprint / Forter / Checkout / WorldPay）
+### 4. 风控采集依赖商户环境（Fingerprint / Forter / Checkout / WorldPay） [done]
 
 - **现状**：`fingerprint-id`（请求头）、Forter token（`businessParams.cookie`）、Checkout `deviceSessionId`（`checkoutCookie`）、WorldPay `sessionId` 等由 SDK 在 `ready()` / init 阶段预采集；**失败不阻断支付**，对应字段可能为空。
 - **缺口 / 风险**：采集依赖商户 App WebView 配置、域名白名单、第三方脚本与 Cookie 策略、ATS / 网络安全策略等；不同商户环境可能采不到，无法在 SDK 侧「一次修死」。
@@ -37,7 +37,7 @@
     - **Cookie / 存储**：Forter 依赖 `forterToken` cookie；限制第三方 Cookie 可能导致 token 为空。
     - **创建订单 risk 开关**：仅 `enabled === true` 的厂商会采集；WorldPay 至少需要下发动态 `jwt`；钱包路径下 BIN 常为空属已知限制。
     - **观测**：对接时用 demo / 日志确认请求头 `fingerprint-id` 与支付 body 风控字段是否有值；空值时先查 App 网络与 WebView 策略，再查渠道侧是否强制要求。
-  - 若对接中反复踩坑，再补一份商户侧「风控采集排查」指引文档。
+  - 已在 [`output/SDK.md`](../output/SDK.md) 补充商户侧排查要点；若后续仍反复踩坑，再单独拆分一份指引文档。
 
 ---
 
@@ -53,11 +53,11 @@
 
 - **已处理**：对齐 ramp-vue，去掉完整性校验；钱包有地址对象时按字段上送，缺省传空串；无地址对象则不写地址字段。
 
-### 7. 中间态回调语义
+### 7. 中间态回调语义 [done]
 
 - **现状**：`TRANSFER`（orderState 3/4）、`s3dsComplete` 等非终态成功路径主要走 `onComplete`，不走 `onSuccess`。
 - **缺口**：商户易把「流程结束」当成「支付成功」。
-- **后续计划**：补强文档说明，或增加更明确的状态回调约定。
+- **后续计划**：已补强 [`output/SDK.md`](../output/SDK.md) / [`output/PARAMETERS.md`](../output/PARAMETERS.md) 文档说明；若商户仍误用，再考虑增加更明确的状态回调约定。
 
 ### 8. `actionMode: 'auto'` 与 App WebView
 
@@ -65,14 +65,14 @@
 - **缺口**：SDK **尚未**在运行时检测 `NativeBridge` 并强制降级为 `callback`。
 - **后续计划**：若商户仍误配，再考虑运行时降级；当前以文档 + demo 约束为准。
 
-### 9. 错误信息可观测性
+### 9. 错误信息可观测性 [done]
 
 - **现状**：商户回调多为 `Error.message`；`returnCode` / `traceId` 可通过 `getLastTraceId()` 等拿到，但 PARAMETERS 覆盖不足。
 - **缺口**：线上排障时商户难关联平台 trace。
-- **后续计划**：补 PARAMETERS / SDK 文档；视需要在 `onError` 透出结构化错误字段。
+- **后续计划**：已补 PARAMETERS / SDK 文档中的 `getLastTraceId()`；视需要再考虑在 `onError` 透出结构化错误字段。
 
-### 10. PARAMETERS 与真实 init 表面对齐
+### 10. PARAMETERS 与真实 init 表面对齐 [done]
 
 - **现状**：`actionMode` / `openAction` / `environment`（API 域名语义）及创单 `order.environment`（Google Pay）已写入 PARAMETERS / SERVER / pay-api；浏览器/App 双轨二次动作见 SDK.md §6。
 - **缺口**：`onStatusChange`、`onRiskCollected` 等仍可能未完整列入参数表。
-- **后续计划**：继续对齐其余 init 表面字段。
+- **后续计划**：本轮已补 `onStatusChange`、`onRiskCollected`、`onOrderCreated`、`sdk.openAction()`、`sdk.getLastTraceId()`、`window.__paySdkSecondaryReturn()`；后续若 SDK 再扩表面，继续同步文档。

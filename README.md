@@ -23,13 +23,17 @@ npm run format     # prettier write
 
 ## Demos
 
-| 文件                                   | 说明                                                    |
-| -------------------------------------- | ------------------------------------------------------- |
-| [demo/index.html](demo/index.html)     | 创建订单（demo 签名）；成功后跳确认页                   |
-| [demo/confirm.html](demo/confirm.html) | 查一次 order/detail → 挂载 SDK → 确认支付；终态跳结果页 |
-| [demo/result.html](demo/result.html)   | 展示订单状态与金额等信息；可再来一单                    |
+| 文件                                               | 说明                                                    |
+| -------------------------------------------------- | ------------------------------------------------------- |
+| [demo/index.html](demo/index.html)                 | 创建订单（demo 签名）；成功后跳确认页                   |
+| [demo/confirm.html](demo/confirm.html)             | 查一次 order/detail → 挂载 SDK → 确认支付；终态跳结果页 |
+| [demo/result.html](demo/result.html)               | 展示订单状态与金额等信息；可再来一单                    |
+| [demo/3ds-challenge.html](demo/3ds-challenge.html) | App 二级 WebView 的 3DS Challenge 参考壳页              |
+| [demo/3ds-method.html](demo/3ds-method.html)       | App 二级 WebView 的 3DS Method 参考壳页                 |
+| [demo/redirectUrl.html](demo/redirectUrl.html)     | 二级页回跳 `redirectUrl` 落地页示例                     |
+| [demo/callBackUrl.html](demo/callBackUrl.html)     | 二级页回跳 `callbackUrl` 落地页示例                     |
 
-三页右下角带 **vConsole**。共享凭据与签名见 [`demo/config.js`](demo/config.js)、[`demo/signed-api.js`](demo/signed-api.js)（仅 demo；生产勿用）。
+主流程三页右下角带 **vConsole**。共享凭据与签名见 [`demo/config.js`](demo/config.js)、[`demo/signed-api.js`](demo/signed-api.js)（仅 demo；生产勿用）。
 
 ## Usage
 
@@ -98,6 +102,8 @@ cashier WebView to `webUrl` / `s3ds`.
 | `sdk.ready()`          | Uses the passed create-order response, starts risk prefetch, loads the selected wallet, checks availability.           |
 | `sdk.mount()`          | Renders the wallet button. May be called before `ready()`; preparation then runs automatically.                        |
 | `sdk.pay()`            | Starts wallet authorize in the user-gesture stack (custom button). Call after `ready()` resolves.                      |
+| `sdk.openAction()`     | Uses the built-in action opener for a previously received secondary action.                                            |
+| `sdk.getLastTraceId()` | Returns the last openapi `traceId` for troubleshooting.                                                                |
 | `sdk.destroy()`        | Clears the button, payment-action iframe and active order polling timer.                                               |
 
 ## Result shape (`onSuccess` / `onComplete`)
@@ -115,6 +121,8 @@ cashier WebView to `webUrl` / `s3ds`.
 - [output/SDK.md](output/SDK.md) — merchant H5 / SDK
 - [output/WEBVIEW.md](output/WEBVIEW.md) — App WebView / Bridge
 - [output/GOOGLE_PAY_ANDROID.md](output/GOOGLE_PAY_ANDROID.md) — Android Production（`OR_BIBED_11` / `13` / `15` 与官方链接）
+- [output/APPLE_PAY_IOS.md](output/APPLE_PAY_IOS.md) — iOS `WKWebView` / H5 Apple Pay 要点
 - [output/PARAMETERS.md](output/PARAMETERS.md) — merchant `RampPay.init` parameters
+- [self-wallet/](self-wallet/) — merchants that cannot load `pay.min.js` and need to self-integrate Google Pay / Apple Pay
 - [docs/pay-api/](docs/pay-api/) — internal API contracts（详细类型）
 - [docs/PARAMETERS.md](docs/PARAMETERS.md) — same parameter surface as output/PARAMETERS.md

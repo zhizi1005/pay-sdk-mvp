@@ -9,7 +9,7 @@ Written in **TypeScript**; bundled to a single IIFE file with Vite.
 商户参数说明见 [output/PARAMETERS.md](output/PARAMETERS.md)（与
 [docs/PARAMETERS.md](docs/PARAMETERS.md) 对齐）。接口契约见
 [docs/pay-api/](docs/pay-api/)。内部未完成功能 / 后续迭代见
-[docs/BACKLOG.md](docs/BACKLOG.md)。
+[docs/BACKLOG.md](docs/BACKLOG.md)。版本记录见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## Build
 
@@ -96,17 +96,17 @@ cashier WebView to `webUrl` / `s3ds`.
 
 ## API
 
-| Method                 | Description                                                                                                            |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `RampPay.init(config)` | Validates `order` (+ optional `api`) and returns an SDK instance. `RampPay.version` is the exact build (e.g. `1.0.0`). |
-| `sdk.ready()`          | Uses the passed create-order response, starts risk prefetch, loads the selected wallet, checks availability.           |
-| `sdk.mount()`          | Renders the wallet button. May be called before `ready()`; preparation then runs automatically.                        |
-| `sdk.pay()`            | Starts wallet authorize in the user-gesture stack (custom button). Call after `ready()` resolves.                      |
-| `sdk.openAction()`     | Uses the built-in action opener for a previously received secondary action.                                            |
-| `sdk.getLastTraceId()` | Returns the last openapi `traceId` for troubleshooting.                                                                |
-| `sdk.getBridgeName()`  | Resolved JS Bridge mount name (`NativeBridge` if `bridgeName` omitted).                                                |
-| `sdk.getBridge()`      | `window[sdk.getBridgeName()]`, or `undefined` if the App did not inject it.                                            |
-| `sdk.destroy()`        | Clears the button, payment-action iframe and active order polling timer.                                               |
+| Method                 | Description                                                                                                                                    |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RampPay.init(config)` | Validates `order` (+ optional `api`) and returns an SDK instance. `RampPay.version` matches `package.json` (see [CHANGELOG.md](CHANGELOG.md)). |
+| `sdk.ready()`          | Uses the passed create-order response, starts risk prefetch, loads the selected wallet, checks availability.                                   |
+| `sdk.mount()`          | Renders the wallet button. May be called before `ready()`; preparation then runs automatically.                                                |
+| `sdk.pay()`            | Starts wallet authorize in the user-gesture stack (custom button). Call after `ready()` resolves.                                              |
+| `sdk.openAction()`     | Uses the built-in action opener for a previously received secondary action.                                                                    |
+| `sdk.getLastTraceId()` | Returns the last openapi `traceId` for troubleshooting.                                                                                        |
+| `sdk.getBridgeName()`  | Resolved JS Bridge mount name (`NativeBridge` if `bridgeName` omitted).                                                                        |
+| `sdk.getBridge()`      | `window[sdk.getBridgeName()]`, or `undefined` if the App did not inject it.                                                                    |
+| `sdk.destroy()`        | Clears the button, payment-action iframe and active order polling timer.                                                                       |
 
 ## Result shape (`onSuccess` / `onComplete`)
 

@@ -6,6 +6,7 @@
 
 | 路径                                                 | 说明                                                                               |
 | ---------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| [`CHANGELOG.md`](./CHANGELOG.md)                     | 交付版本记录（与 `RampPay.version` 一致）                                          |
 | [`pay.min.js`](./pay.min.js)                         | 浏览器 / WebView 用的 SDK（IIFE，`window.RampPay`）                                |
 | [`ramp-pay/v1/pay.min.js`](./ramp-pay/v1/pay.min.js) | 上传 static 用的目录布局（与官方 URL 路径一致）                                    |
 | [`SDK.md`](./SDK.md)                                 | H5 / 收银台接入：init、流程、回调、清单                                            |
@@ -60,4 +61,4 @@ sequenceDiagram
 <script src="./pay.min.js"></script>
 ```
 
-控制台可查精确版本：`RampPay.version`（如 `1.0.0`）。
+控制台可查精确版本：`RampPay.version`（当前交付见 [CHANGELOG.md](./CHANGELOG.md)）。

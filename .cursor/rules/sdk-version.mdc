@@ -1,0 +1,33 @@
+---
+description: 交付 pay.min.js 前必须按改动大小 bump package.json version 并重建
+alwaysApply: true
+---
+
+# SDK 版本号（仅 pay-sdk-mvp）
+
+`window.RampPay.version` 来自构建时的 `package.json` `version`（见 `vite.config.ts` 的 `__SDK_VERSION__`）。改源码却不升版本，交出去仍是旧号，商户无法区分包。
+
+## 何时必须 bump
+
+面向商户的 `pay.min.js` / `output/` 有行为或公开 API 变化时（含文档契约变化），在 **`npm run build` 之前** 改 `package.json`（并同步 `package-lock.json` 顶层 `version`），在 [CHANGELOG.md](CHANGELOG.md) 与 [output/CHANGELOG.md](output/CHANGELOG.md) 记下 why。
+
+纯内部注释、未交付的 demo 微调：可不升版本。
+
+## 怎么升（SemVer）
+
+相对**上一份已交给商户的号**（不是相对 git 里随便一次 commit）：
+
+| 改动 | 升哪位 | 例 |
+|------|--------|-----|
+| 修 bug、收紧校验、文档澄清 | patch | `1.1.0` → `1.1.1` |
+| 新能力且旧接入仍可用 | minor | `1.1.0` → `1.2.0` |
+| 破坏已发布契约 | major | `1.1.0` → `2.0.0` |
+
+CDN 路径 `ramp-pay/v1/` 只随 **major** 考虑是否新开目录；minor/patch 仍走 `/v1/`。
+
+漏掉 `npm run build` 则 `RampPay.version` 不会变。
+
+## 不要
+
+- 不要把测试商户号、gateway 等写进 SDK 当默认值
+- 不要把本规则复制到用户级 `~/.cursor/rules/` 或其它仓库

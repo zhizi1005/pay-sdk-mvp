@@ -3,7 +3,7 @@
 本文说明商户如何在 **App WebView**（及同构收银台 H5）中接入 Pay SDK，完成 Google Pay / Apple Pay 支付。  
 **App 内嵌须同时阅读** [WEBVIEW.md](./WEBVIEW.md)（Bridge / 底部抽屉 / 3DS 壳页）；服务端见 [SERVER.md](./SERVER.md)。
 
-同目录 [`pay.min.js`](./pay.min.js) 为交付用 SDK 文件（上传 CDN 后用官方链接）。
+同目录 [`pay.min.js`](./pay.min.js) 为交付用 SDK 文件（上传 CDN 后用官方链接）。控制台 `RampPay.version` 应与 [CHANGELOG.md](./CHANGELOG.md) 当前条目一致。
 
 ---
 

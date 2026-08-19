@@ -41,7 +41,8 @@
       <summary class="section-title">onAction / 二级页</summary>
       <p class="meta">
         App：webUrl/s3ds → openPayWebUrl；threeDS → openPayChallenge；threeDSMethod →
-        openPayMethod。终态 closePayWebUrl。壳页
+        openPayMethod。终态 closePayWebUrl。挂载名：创建页
+        <code>bridgeName</code>（空则 <code>NativeBridge</code>）。壳页
         <a href="./3ds-challenge.html">3ds-challenge.html</a> /
         <a href="./3ds-method.html">3ds-method.html</a>。
       </p>
@@ -209,6 +210,8 @@
 
         const environment = flow.environment || 'TEST'
         const requestedActionMode = flow.actionMode || 'callback'
+        const requestedBridgeName =
+          flow.bridgeName && String(flow.bridgeName).trim() ? String(flow.bridgeName).trim() : ''
         const orderRequest = flow.orderRequest || {}
         const orderResponse = flow.createOrderResponse
         const redirectUrl = orderRequest.redirectUrl || ''
@@ -216,7 +219,7 @@
 
         updateGatewayEnvTip(orderResponse)
 
-        const bridge = window.NativeBridge
+        const bridge = RampPay.getNativeBridge(requestedBridgeName || undefined)
         const hasBridge = !!(
           bridge &&
           (typeof bridge.openPayWebUrl === 'function' ||
@@ -327,15 +330,22 @@
 
         if (hasBridge && requestedActionMode === 'auto') {
           console.warn(
-            '[demo] NativeBridge 存在：已强制 actionMode=callback，避免 auto 内置 location.assign 双开'
+            '[demo] Bridge 存在（' +
+              RampPay.normalizeBridgeName(requestedBridgeName || undefined) +
+              '）：已强制 actionMode=callback，避免 auto 内置 location.assign 双开'
           )
         }
         setStatus(
-          '挂载 SDK…（actionMode=' + actionMode + (hasBridge ? ' · Bridge' : ' · 纯浏览器') + '）',
+          '挂载 SDK…（actionMode=' +
+            actionMode +
+            (hasBridge
+              ? ' · Bridge=' + RampPay.normalizeBridgeName(requestedBridgeName || undefined)
+              : ' · 纯浏览器') +
+            '）',
           false
         )
 
-        sdk = RampPay.init({
+        const initConfig = {
           container: '#pay-container',
           environment: environment,
           actionMode: actionMode,
@@ -494,7 +504,9 @@
             )
           },
           onCancel: handlers.onCancel
-        })
+        }
+        if (requestedBridgeName) initConfig.bridgeName = requestedBridgeName
+        sdk = RampPay.init(initConfig)
         sdkRef.current = sdk
 
         ui.run(sdk).then(

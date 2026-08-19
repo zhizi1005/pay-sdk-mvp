@@ -74,19 +74,32 @@ H5 SDK 接入见 [SDK.md](./SDK.md)；参考壳页见 [`html/`](./html/)。
 
 ### 4.1 挂载名
 
-Android：
+默认挂载名是 **`NativeBridge`**（`window.NativeBridge`）。各商户 App 的 JS Interface 名可以不同：H5 在 `RampPay.init({ bridgeName })` 传入与 Native **完全一致**的名字；**不传或传空**则仍用 `NativeBridge`。
+
+方法名不变（见 4.2），只改 `window` 上的对象名。
+
+Android（把 `"NativeBridge"` 换成商户实际注入名）：
 
 ```kotlin
 webView.addJavascriptInterface(PayJsBridge(), "NativeBridge")
 ```
 
-H5：`window.NativeBridge`。
+H5：
 
 ```js
-var bridge = window.NativeBridge
+var sdk = RampPay.init({
+  order: createOrderResponseData,
+  // 省略则等同 NativeBridge
+  bridgeName: 'NativeBridge',
+  onAction: function (action) {
+    var bridge = sdk.getBridge() // window[sdk.getBridgeName()]
+  }
+})
 ```
 
-iOS 也建议在 H5 侧暴露同名 `window.NativeBridge`，把调用转发到 `WKScriptMessageHandler`，这样 H5 代码可与 Android 共用：
+也可用全局辅助：`RampPay.getNativeBridge(name)`（`name` 省略时同样默认 `NativeBridge`）。
+
+iOS 也建议在 H5 侧暴露**与 `bridgeName` 相同**的 `window.*`，把调用转发到 `WKScriptMessageHandler`，这样 H5 代码可与 Android 共用：
 
 ```swift
 final class NativeBridge: NSObject, WKScriptMessageHandler {
@@ -190,34 +203,34 @@ Native 注入建议：将 `jsonPayload` Base64 后 `evaluateJavascript`，避免
 ## 5. H5 最小接入（可粘贴）
 
 ```js
-var bridge = window.NativeBridge
+// 与 Native 注入名一致；不传 init.bridgeName 时 SDK 默认 NativeBridge
+var bridgeName = 'NativeBridge'
 // 商户自托管壳页；本包见 html/3ds-*.html
 var challengeShell = 'https://merchant.example/3ds-challenge.html'
 var methodShell = 'https://merchant.example/3ds-method.html'
 var redirectUrl = '' // 与创建订单一致
 var callbackUrl = ''
 
-function canOpenPayWebUrl() {
-  return !!(bridge && typeof bridge.openPayWebUrl === 'function')
+function missingBridge(method) {
+  console.error('[RampPay] ' + bridgeName + '.' + method + ' missing; please upgrade the App')
+  // 正式 App：可 Toast「请升级 App」
 }
 
 function closePayDrawer() {
+  var bridge = sdk.getBridge()
   if (bridge && typeof bridge.closePayWebUrl === 'function') {
     bridge.closePayWebUrl()
   }
 }
 
-function missingBridge(method) {
-  console.error('[RampPay] NativeBridge.' + method + ' missing; please upgrade the App')
-  // 正式 App：可 Toast「请升级 App」
-}
-
 var sdk = RampPay.init({
   container: '#pay-button',
   order: createOrderResponseData,
+  bridgeName: bridgeName,
   onAction: function (action) {
+    var bridge = sdk.getBridge()
     if (action.type === 'webUrl' || action.type === 's3ds') {
-      if (canOpenPayWebUrl()) {
+      if (bridge && typeof bridge.openPayWebUrl === 'function') {
         bridge.openPayWebUrl(action.url, redirectUrl || '', callbackUrl || '')
         return
       }
@@ -266,7 +279,7 @@ sdk.ready().then(function () {
 
 ### 无 Bridge 时
 
-正式 App WebView 必须注入完整 `NativeBridge`。缺失时提示用户升级 App，**不要**在收银台页做整页跳转打开 `webUrl` / `s3ds`。
+正式 App WebView 必须注入完整 Bridge（默认 `NativeBridge`，或与 `bridgeName` 同名）。缺失时提示用户升级 App，**不要**在收银台页做整页跳转打开 `webUrl` / `s3ds`。
 
 ---
 
@@ -324,7 +337,7 @@ iOS 补充：
 ## 9. 自检清单
 
 - [ ] Android 8.0+ / iOS 16+；iOS 使用 WKWebView
-- [ ] 注入 `NativeBridge`：Android `JavascriptInterface` / iOS `messageHandlers` 都对外暴露同名四方法
+- [ ] 注入 Bridge：Android `JavascriptInterface` / iOS `messageHandlers` 对外暴露四方法；H5 `bridgeName` 与注入名一致（不传则 `NativeBridge`）
 - [ ] 底部抽屉二级 WebView，非当前页跳转
 - [ ] H5：`webUrl`/`s3ds` → Bridge；`threeDS`/`threeDSMethod` → 壳页 Bridge
 - [ ] 创建订单 `redirectUrl`；命中后 dismiss + `__paySdkSecondaryReturn`

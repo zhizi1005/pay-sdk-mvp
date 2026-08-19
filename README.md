@@ -104,6 +104,8 @@ cashier WebView to `webUrl` / `s3ds`.
 | `sdk.pay()`            | Starts wallet authorize in the user-gesture stack (custom button). Call after `ready()` resolves.                      |
 | `sdk.openAction()`     | Uses the built-in action opener for a previously received secondary action.                                            |
 | `sdk.getLastTraceId()` | Returns the last openapi `traceId` for troubleshooting.                                                                |
+| `sdk.getBridgeName()`  | Resolved JS Bridge mount name (`NativeBridge` if `bridgeName` omitted).                                                |
+| `sdk.getBridge()`      | `window[sdk.getBridgeName()]`, or `undefined` if the App did not inject it.                                            |
 | `sdk.destroy()`        | Clears the button, payment-action iframe and active order polling timer.                                               |
 
 ## Result shape (`onSuccess` / `onComplete`)

@@ -28,6 +28,7 @@ https://merchant.example/pay/3ds-method.html
 H5：
 
 ```js
+var bridge = sdk.getBridge()
 bridge.openPayChallenge(challengeShell, JSON.stringify({ MD, JWT, action }))
 bridge.openPayMethod(methodShell, JSON.stringify({ threeDSMethodData, methodUrl }))
 ```

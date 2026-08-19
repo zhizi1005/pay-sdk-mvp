@@ -172,13 +172,14 @@ SDK **不**调用创建订单、**不**签名、**不**需要 `appId` / `appSecr
 
 ## 4. 初始化参数（摘要）
 
-| 参数                                 | 类型                    | 必传 | 默认值         | 说明                                                                |
-| ------------------------------------ | ----------------------- | :--: | -------------- | ------------------------------------------------------------------- |
-| `container`                          | `string \| HTMLElement` | 条件 | —              | 使用 `mount()` 时必传；仅自定义按钮 + `pay()` 时可省略              |
-| `order`                              | `object`                |  是  | —              | 创建订单响应，须含 `token`                                          |
-| `environment`                        | `'TEST'\|'PRODUCTION'`  |  否  | `'PRODUCTION'` | 内置 API 域名等；**不**决定 Google Pay `PaymentsClient.environment` |
-| `onAction`                           | `(action) => void`      |  否  | —              | webUrl / 3DS 等二次动作                                             |
-| `onSuccess` / `onError` / `onCancel` | function                |  否  | —              | 成功 / 失败 / 用户取消钱包                                          |
+| 参数                                 | 类型                    | 必传 | 默认值           | 说明                                                                |
+| ------------------------------------ | ----------------------- | :--: | ---------------- | ------------------------------------------------------------------- |
+| `container`                          | `string \| HTMLElement` | 条件 | —                | 使用 `mount()` 时必传；仅自定义按钮 + `pay()` 时可省略              |
+| `order`                              | `object`                |  是  | —                | 创建订单响应，须含 `token`                                          |
+| `environment`                        | `'TEST'\|'PRODUCTION'`  |  否  | `'PRODUCTION'`   | 内置 API 域名等；**不**决定 Google Pay `PaymentsClient.environment` |
+| `bridgeName`                         | `string`                |  否  | `'NativeBridge'` | App JS Bridge 挂载名；省略则 `window.NativeBridge`                  |
+| `onAction`                           | `(action) => void`      |  否  | —                | webUrl / 3DS 等二次动作                                             |
+| `onSuccess` / `onError` / `onCancel` | function                |  否  | —                | 成功 / 失败 / 用户取消钱包                                          |
 
 ### `order` 必含字段
 
@@ -212,6 +213,8 @@ API 根域名：`https://api.alchemypay.org`
 | `sdk.pay()`            | 同步唤起钱包；自定义按钮在用户点击回调内调用；须先 `ready()`。Google Pay 使用 JS `loadPaymentData` + `PAYMENT_AUTHORIZATION`；浏览器与 App WebView 的二次动作接入见 [WEBVIEW.md](./WEBVIEW.md) |
 | `sdk.openAction()`     | 用 SDK 内置打开器执行二次动作；适合**纯浏览器 callback 模式**下，商户在 `onAction` 收到动作后稍后手动调用                                                                                      |
 | `sdk.getLastTraceId()` | 返回最近一次 openapi 响应的 `traceId`（成功或失败）；便于联调时带给平台排障                                                                                                                    |
+| `sdk.getBridgeName()`  | 实际 Bridge 挂载名；未传 `config.bridgeName` 时为 `NativeBridge`                                                                                                                               |
+| `sdk.getBridge()`      | `window[sdk.getBridgeName()]`；未注入则为 `undefined`                                                                                                                                          |
 | `sdk.destroy()`        | 移除官方按钮（若有）、清理 iframe 与轮询                                                                                                                                                       |
 
 二次动作见 §6：纯浏览器可用 `actionMode: 'auto'`；App 见 [WEBVIEW.md](./WEBVIEW.md)。**不要**在收银台 WebView 内对 `webUrl` / `s3ds` 做整页跳转。
@@ -253,13 +256,15 @@ RampPay.init({
 
 ### 6.2 App WebView（`actionMode: 'callback'`，默认）
 
-只 `onAction`，**不**自动打开；原页继续 poll。App 在 `onAction` 中走 Native Bridge：
+只 `onAction`，**不**自动打开；原页继续 poll。App 在 `onAction` 中走 Native Bridge（`sdk.getBridge()`）：
 
-| `action.type`     | App                                                         |
-| ----------------- | ----------------------------------------------------------- |
-| `webUrl` / `s3ds` | `NativeBridge.openPayWebUrl(url, redirectUrl, callbackUrl)` |
-| `threeDS`         | `openPayChallenge(壳页, payload)`                           |
-| `threeDSMethod`   | `openPayMethod(壳页, payload)`                              |
+| `action.type`     | App                                                   |
+| ----------------- | ----------------------------------------------------- |
+| `webUrl` / `s3ds` | `bridge.openPayWebUrl(url, redirectUrl, callbackUrl)` |
+| `threeDS`         | `openPayChallenge(壳页, payload)`                     |
+| `threeDSMethod`   | `openPayMethod(壳页, payload)`                        |
+
+`config.bridgeName` 与 App 注入的 JS Interface 名一致；**不传则使用 `NativeBridge`**。方法名不变。
 
 **禁止**在收银台 WebView 内对 `webUrl` / `s3ds` 做整页跳转；**禁止** `auto` + 仅在 `onAction` 开 Bridge（会双开）。
 
@@ -320,7 +325,7 @@ Apple Pay iOS / WKWebView 侧要求见 [APPLE_PAY_IOS.md](./APPLE_PAY_IOS.md)；
 - [ ] `RampPay.init({ order })` 传入完整响应
 - [ ] 实现 `onSuccess` / `onError` / `onCancel` / `onAction`
 - [ ] 纯浏览器：需要 SDK 自动打开二次动作时设 `actionMode: 'auto'`（见 §6.1）
-- [ ] App：`actionMode: 'callback'`（默认）+ 按 [WEBVIEW.md](./WEBVIEW.md) 实现 Bridge；`webUrl`/`s3ds` 不在收银台做整页跳转
+- [ ] App：`actionMode: 'callback'`（默认）+ 按 [WEBVIEW.md](./WEBVIEW.md) 实现 Bridge；`bridgeName` 与 Native 注入名一致（不传则 `NativeBridge`）；`webUrl`/`s3ds` 不在收银台做整页跳转
 - [ ] Android Google Pay Production：Pay Console **Domain（Web）+ App** 均已过审，并正确启用 WebView Payment Request（见 [GOOGLE_PAY_ANDROID.md](./GOOGLE_PAY_ANDROID.md)）
 - [ ] 创建订单带 `redirectUrl`（及如需的 `callbackUrl`）；回跳后调 `__paySdkSecondaryReturn()`
 - [ ] 离开支付页 `sdk.destroy()`，并关闭未关的抽屉

@@ -121,6 +121,10 @@
             onAction）</label
           >
           <label><input type="radio" name="actionMode" value="auto" /> auto（SDK 自动打开）</label>
+          <label class="field">
+            bridgeName（可选，空则 NativeBridge）
+            <input type="text" name="bridgeName" placeholder="NativeBridge" autocomplete="off" />
+          </label>
         </fieldset>
 
         <fieldset>
@@ -395,6 +399,7 @@
         const fd = new FormData(form)
         const environment = fd.get('environment') || 'TEST'
         const actionMode = fd.get('actionMode') || 'callback'
+        const bridgeName = String(fd.get('bridgeName') || '').trim()
         const method = fd.get('method') || 'googlePay'
         const orderRequest = readOrderFromForm()
         if (!orderRequest.merchantOrderNo) {
@@ -480,6 +485,7 @@
         session.setFlow({
           environment: environment,
           actionMode: actionMode,
+          bridgeName: bridgeName,
           method: method,
           orderRequest: orderRequest,
           createOrderResponse: orderResponse,

@@ -7,6 +7,7 @@ import type {
   PaySdkSettleResult,
   PaymentAction,
   PaymentActionMode,
+  PayNativeBridge,
   QueryOrderResponse,
   RuntimeWalletConfig
 } from './types.js'
@@ -33,6 +34,7 @@ import {
 } from './orderState.js'
 import { collectRisk } from './risk/index.js'
 import { collectFingerprint } from './risk/fingerprint.js'
+import { DEFAULT_BRIDGE_NAME, getNativeBridge, normalizeBridgeName } from './bridge.js'
 
 export type {
   PaySdkConfig,
@@ -75,7 +77,8 @@ export type {
   OnRampOrderStatusLabel,
   OrderStatus,
   PaymentAction,
-  PaymentActionMode
+  PaymentActionMode,
+  PayNativeBridge
 } from './types.js'
 
 export { PayApiError, normalizeCreateOrderResponse, normalizeQueryOrderResponse } from './api.js'
@@ -94,6 +97,7 @@ export {
   GOOGLE_PAY_CALLBACK_INTENTS,
   applyGooglePayTestDefaults
 } from './googlePay.js'
+export { DEFAULT_BRIDGE_NAME, getNativeBridge, normalizeBridgeName } from './bridge.js'
 
 function validateConfig(config: PaySdkConfig): void {
   if (!config || typeof config !== 'object') {
@@ -115,6 +119,7 @@ function validateConfig(config: PaySdkConfig): void {
   if (!order.token || typeof order.token !== 'string' || !order.token.trim()) {
     throw new Error('order.token is required')
   }
+  normalizeBridgeName(config.bridgeName)
 }
 
 function hasSecondaryAction(response: PayResponse): boolean {
@@ -338,6 +343,14 @@ class PaySdk implements PaySdkInstance {
 
   getLastTraceId(): string | undefined {
     return this.api.getLastTraceId()
+  }
+
+  getBridgeName(): string {
+    return normalizeBridgeName(this.config.bridgeName)
+  }
+
+  getBridge(): PayNativeBridge | undefined {
+    return getNativeBridge(this.getBridgeName())
   }
 
   private getActionMode(): PaymentActionMode {
@@ -691,19 +704,25 @@ declare global {
       version: string
       describeS3ds: typeof describeS3ds
       describePayResponse: typeof describePayResponse
+      DEFAULT_BRIDGE_NAME: typeof DEFAULT_BRIDGE_NAME
+      getNativeBridge: typeof getNativeBridge
+      normalizeBridgeName: typeof normalizeBridgeName
     }
-    /** App WebView Bridge（抽屉） */
-    NativeBridge?: {
-      openPayWebUrl?: (url: string, redirectUrl: string, callbackUrl: string) => void
-      openPayChallenge?: (shellUrl: string, jsonPayload: string) => void
-      openPayMethod?: (shellUrl: string, jsonPayload: string) => void
-      closePayWebUrl?: () => void
-    }
+    /** Default App WebView Bridge (`bridgeName` omitted). */
+    NativeBridge?: PayNativeBridge
     /** Native 二级页命中 redirect/callback 后调用，催原页立刻查单 */
     __paySdkSecondaryReturn?: () => void
   }
 }
 
 if (typeof window !== 'undefined') {
-  window.RampPay = { init, version, describeS3ds, describePayResponse }
+  window.RampPay = {
+    init,
+    version,
+    describeS3ds,
+    describePayResponse,
+    DEFAULT_BRIDGE_NAME,
+    getNativeBridge,
+    normalizeBridgeName
+  }
 }

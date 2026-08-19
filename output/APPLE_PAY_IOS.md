@@ -74,6 +74,6 @@ Apple Pay 域名校验请求由 SDK 调 `POST /payment-hub/domain/verify`；商�
 - [ ] 收银台页为 HTTPS
 - [ ] 真机可用，且设备 Wallet / Apple Pay 可正常使用
 - [ ] 收银台域名已完成 Apple Pay on the Web 域名校验
-- [ ] App 已注入 `window.NativeBridge` 四个方法
+- [ ] App 已注入与 `bridgeName` 同名的四个方法（默认 `window.NativeBridge`）
 - [ ] 二级页命中 `redirectUrl` / `callbackUrl` 后会关栏并调用 `window.__paySdkSecondaryReturn()`
 - [ ] 未把原生 PassKit 按钮路径误当成 SDK 路径

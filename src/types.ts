@@ -397,6 +397,14 @@ export type PaymentAction =
  */
 export type PaymentActionMode = 'callback' | 'auto'
 
+/** Methods the cashier H5 calls on the injected Native object. */
+export interface PayNativeBridge {
+  openPayWebUrl?: (url: string, redirectUrl: string, callbackUrl: string) => void
+  openPayChallenge?: (shellUrl: string, jsonPayload: string) => void
+  openPayMethod?: (shellUrl: string, jsonPayload: string) => void
+  closePayWebUrl?: () => void
+}
+
 export interface GooglePayResult {
   method: 'googlePay'
   token?: string
@@ -447,6 +455,10 @@ export interface PaySdkInstance {
   openAction(action: PaymentAction): void
   /** 最近一次 openapi 响应的 traceId（成功或失败） */
   getLastTraceId(): string | undefined
+  /** 实际使用的 Bridge 挂载名（未传 `bridgeName` 时为 `NativeBridge`） */
+  getBridgeName(): string
+  /** `window[getBridgeName()]`；未注入则为 `undefined` */
+  getBridge(): PayNativeBridge | undefined
   destroy(): void
 }
 
@@ -502,6 +514,11 @@ export interface PaySdkConfig extends PaySdkBaseConfig {
    * auto：尝试 openAction / SDK 内置打开。
    */
   actionMode?: PaymentActionMode
+  /**
+   * App WebView JS Bridge 挂载名（`window[bridgeName]`）。
+   * 省略或空字符串时使用 `NativeBridge`。须为合法 JS 标识符，与 Native 注入名一致。
+   */
+  bridgeName?: string
   /**
    * 自定义打开器（如 Native JS Bridge）。
    * 返回 true 表示已处理，SDK 不再使用内置打开。

@@ -291,7 +291,7 @@ RampPay.init({
 - [ ] 实现 `onSuccess` / `onError` / `onCancel` / `onAction`
 - [ ] 纯浏览器：需要 SDK 自动打开二次动作时设 `actionMode: 'auto'`（见 §6.1）
 - [ ] App：`actionMode: 'callback'`（默认）+ 按 [WEBVIEW.md](./WEBVIEW.md) 实现 Bridge；`webUrl`/`s3ds` 不在收银台做整页跳转
-- [ ] Android Google Pay：完成 Pay Console App integration，并正确启用 WebView Payment Request（见 [GOOGLE_PAY_ANDROID.md](./GOOGLE_PAY_ANDROID.md)）
+- [ ] Android Google Pay Production：Pay Console **Domain（Web）+ App** 均已过审，并正确启用 WebView Payment Request（见 [GOOGLE_PAY_ANDROID.md](./GOOGLE_PAY_ANDROID.md)）
 - [ ] 创建订单带 `redirectUrl`（及如需的 `callbackUrl`）；回跳后调 `__paySdkSecondaryReturn()`
 - [ ] 离开支付页 `sdk.destroy()`，并关闭未关的抽屉
 - [ ] 业务接口 `returnCode === '0000'` 联调通过

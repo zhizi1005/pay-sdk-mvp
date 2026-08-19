@@ -4,16 +4,16 @@
 
 ## 交付清单
 
-| 路径                                                 | 说明                                                       |
-| ---------------------------------------------------- | ---------------------------------------------------------- |
-| [`pay.min.js`](./pay.min.js)                         | 浏览器 / WebView 用的 SDK（IIFE，`window.RampPay`）        |
-| [`ramp-pay/v1/pay.min.js`](./ramp-pay/v1/pay.min.js) | 上传 static 用的目录布局（与官方 URL 路径一致）            |
-| [`SDK.md`](./SDK.md)                                 | H5 / 收银台接入：init、流程、回调、清单                    |
-| [`WEBVIEW.md`](./WEBVIEW.md)                         | App 底部抽屉、Bridge 契约、关栏与催查单                    |
-| [`GOOGLE_PAY_ANDROID.md`](./GOOGLE_PAY_ANDROID.md)   | Android Production：`OR_BIBED_11` / `13` / `15` 与官方链接 |
-| [`SERVER.md`](./SERVER.md)                           | 商户服务端：签名创建订单、响应字段、环境域名               |
-| [`PARAMETERS.md`](./PARAMETERS.md)                   | `RampPay.init` 参数表                                      |
-| [`html/`](./html/)                                   | Challenge / Method 参考壳页（可自托管）                    |
+| 路径                                                 | 说明                                                                               |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| [`pay.min.js`](./pay.min.js)                         | 浏览器 / WebView 用的 SDK（IIFE，`window.RampPay`）                                |
+| [`ramp-pay/v1/pay.min.js`](./ramp-pay/v1/pay.min.js) | 上传 static 用的目录布局（与官方 URL 路径一致）                                    |
+| [`SDK.md`](./SDK.md)                                 | H5 / 收银台接入：init、流程、回调、清单                                            |
+| [`WEBVIEW.md`](./WEBVIEW.md)                         | App 底部抽屉、Bridge 契约、关栏与催查单                                            |
+| [`GOOGLE_PAY_ANDROID.md`](./GOOGLE_PAY_ANDROID.md)   | Android WebView Production：**Domain + App** 均需过审；`OR_BIBED_11` / `13` / `15` |
+| [`SERVER.md`](./SERVER.md)                           | 商户服务端：签名创建订单、响应字段、环境域名                                       |
+| [`PARAMETERS.md`](./PARAMETERS.md)                   | `RampPay.init` 参数表                                                              |
+| [`html/`](./html/)                                   | Challenge / Method 参考壳页（可自托管）                                            |
 
 构建时 `npm run build` 会把最新 `dist/pay.min.js` 同步到 `pay.min.js` 与 `ramp-pay/v1/pay.min.js`。
 

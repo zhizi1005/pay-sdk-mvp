@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Google Pay · Unlimint PRODUCTION</title>
+    <link rel="stylesheet" href="./common.css" />
+  </head>
+  <body>
+    <p class="meta">
+      <a href="./index.html">创建订单</a> ·
+      <a href="./google-pay-unlimint-prod.html">Unlimint PRODUCTION</a>
+    </p>
+    <h1>Google Pay · Unlimint PRODUCTION</h1>
+    <p class="meta">
+      写死创单响应，用 <code>pay.min.js</code> 唤起 Google Pay sheet。用于验证 Production /
+      App+Domain 准入（如 <code>OR_BIBED_11</code>）。假 <code>token</code> /
+      <code>orderNo</code>，授权后支付接口会失败，属预期。
+    </p>
+
+    <div class="panel">
+      <p class="meta" style="margin: 0">
+        <code>environment</code>=PRODUCTION · <code>gateway</code>=unlimint ·
+        <code>merchantId</code>=BCR2DN4TQTA5V4YV
+      </p>
+    </div>
+
+    <p id="status">准备中…</p>
+    <pre id="output">—</pre>
+
+    <div class="confirm-footer" style="position: static; box-shadow: none; margin-top: 24px">
+      <div id="pay-container"></div>
+      <button type="button" id="custom-pay-btn" disabled>加载中</button>
+    </div>
+
+    <script src="./vendor/vconsole.min.js"></script>
+    <script src="./demo-vconsole.js"></script>
+    <script src="https://static.alchemypay.org/ramp-pay/v1/pay.min.js"></script>
+    <script>
+      ;(function () {
+        const statusEl = document.getElementById('status')
+        const outputEl = document.getElementById('output')
+        const payBtn = document.getElementById('custom-pay-btn')
+
+        /** Hardcoded create-order `data` — Unlimint PAYMENT_GATEWAY + PRODUCTION */
+        const order = {
+          orderNo: 'demo-gp-unlimint-prod',
+          environment: 'PRODUCTION',
+          method: 'googlePay',
+          token: 'demo-payment-hub-token',
+          paymentScript: {
+            apiVersion: 2,
+            apiVersionMinor: 0,
+            allowedPaymentMethods: [
+              {
+                type: 'CARD',
+                parameters: {
+                  allowedAuthMethods: ['PAN_ONLY', 'CRYPTOGRAM_3DS'],
+                  allowedCardNetworks: ['MASTERCARD', 'VISA'],
+                  billingAddressRequired: true,
+                  billingAddressParameters: {
+                    format: 'FULL',
+                    phoneNumberRequired: false
+                  }
+                },
+                tokenizationSpecification: {
+                  type: 'PAYMENT_GATEWAY',
+                  parameters: {
+                    gateway: 'unlimint',
+                    gatewayMerchantId: 'BCR2DN4TQTA5V4YV'
+                  }
+                }
+              }
+            ],
+            transactionInfo: {
+              countryCode: 'US',
+              currencyCode: 'USD',
+              totalPriceStatus: 'FINAL',
+              totalPrice: '1.00',
+              totalPriceLabel: 'Total'
+            },
+            merchantInfo: {
+              merchantId: 'BCR2DN4TQTA5V4YV',
+              merchantName: 'ramp'
+            },
+            callbackIntents: ['PAYMENT_AUTHORIZATION']
+          },
+          risk: {
+            forter: { enabled: false },
+            checkout: { enabled: false },
+            worldPay: { enabled: false }
+          }
+        }
+
+        function setStatus(text, isError) {
+          statusEl.textContent = text
+          statusEl.style.color = isError ? '#c00' : ''
+        }
+
+        function show(obj) {
+          outputEl.textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2)
+        }
+
+        if (typeof RampPay === 'undefined') {
+          setStatus('pay.min.js 未加载', true)
+          return
+        }
+
+        const sdk = RampPay.init({
+          container: '#pay-container',
+          environment: 'PRODUCTION',
+          order: order,
+          onSuccess: function (result) {
+            console.log('[unlimint-prod] onSuccess', result)
+            setStatus('onSuccess')
+            show(result)
+          },
+          onError: function (error) {
+            console.log('[unlimint-prod] onError', error)
+            setStatus('onError: ' + (error && error.message ? error.message : String(error)), true)
+            show(error)
+          },
+          onCancel: function () {
+            console.log('[unlimint-prod] onCancel')
+            setStatus('用户取消')
+          },
+          onAction: function (action) {
+            console.log('[unlimint-prod] onAction', action)
+            setStatus('onAction: ' + (action && action.type))
+            show(action)
+          }
+        })
+
+        setStatus('ready()…')
+        sdk
+          .ready()
+          .then(function () {
+            sdk.mount()
+            payBtn.disabled = false
+            payBtn.textContent = '唤起 Google Pay'
+            setStatus('ready · 可点击按钮或官方 GP 按钮')
+          })
+          .catch(function (err) {
+            setStatus('ready 失败: ' + (err && err.message ? err.message : err), true)
+            show(err)
+            payBtn.disabled = true
+            payBtn.textContent = '不可用'
+          })
+
+        payBtn.addEventListener('click', function () {
+          if (payBtn.disabled) return
+          try {
+            setStatus('pay()…')
+            sdk.pay()
+          } catch (err) {
+            setStatus('pay() 失败: ' + (err && err.message ? err.message : err), true)
+          }
+        })
+      })()
+    </script>
+  </body>
+</html>

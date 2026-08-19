@@ -16,6 +16,12 @@
       进入本页后调用一次订单详情；底部「确认」在 SDK ready 后可点（同步
       <code>sdk.pay()</code>）。支付终态跳转结果页。右下角 vConsole 可查看日志。
     </p>
+    <p id="tip-gateway-env" class="meta tip-gateway-env" hidden>
+      <strong
+        >Google Pay environment 不匹配（<code>https://ramp-test.alchemytech.cc/</code>）：</strong
+      >
+      <span id="tip-gateway-env-detail"></span>
+    </p>
 
     <div id="order-summary" class="panel">加载订单详情…</div>
 
@@ -79,6 +85,8 @@
       const riskEl = document.getElementById('risk')
       const outputEl = document.getElementById('output')
       const customPayBtn = document.getElementById('custom-pay-btn')
+      const tipGatewayEnvEl = document.getElementById('tip-gateway-env')
+      const tipGatewayEnvDetailEl = document.getElementById('tip-gateway-env-detail')
 
       let sdk = null
       let lastRiskConfig = null
@@ -86,6 +94,70 @@
       let navigatedToResult = false
 
       ui.bindTraceCopy()
+
+      function parsePaymentScript(order) {
+        let script = order && order.paymentScript
+        if (typeof script === 'string') {
+          try {
+            script = JSON.parse(script)
+          } catch (e) {
+            return null
+          }
+        }
+        return script && typeof script === 'object' ? script : null
+      }
+
+      /** Google Pay gateway from create-order paymentScript（读不到则返回 ''） */
+      function readGooglePayGateway(order) {
+        const script = parsePaymentScript(order)
+        if (!script || !Array.isArray(script.allowedPaymentMethods)) return ''
+        for (let i = 0; i < script.allowedPaymentMethods.length; i++) {
+          const method = script.allowedPaymentMethods[i]
+          const params =
+            method &&
+            method.tokenizationSpecification &&
+            method.tokenizationSpecification.parameters
+          if (params && params.gateway) return String(params.gateway)
+        }
+        return ''
+      }
+
+      /** Align SDK: only exact TEST → TEST，其余按 PRODUCTION */
+      function readGooglePayEnvironment(order) {
+        const script = parsePaymentScript(order)
+        const raw = (order && order.environment) || (script && script.environment)
+        return raw === 'TEST' ? 'TEST' : 'PRODUCTION'
+      }
+
+      /**
+       * ramp-test.alchemytech.cc：unlimint → TEST，否则 → PRODUCTION。
+       * 仅在读到 gateway 且当前 environment 不满足时展示。
+       */
+      function updateGatewayEnvTip(order) {
+        if (!tipGatewayEnvEl || !tipGatewayEnvDetailEl) return
+        tipGatewayEnvEl.hidden = true
+        tipGatewayEnvDetailEl.textContent = ''
+
+        if (location.hostname !== 'ramp-test.alchemytech.cc') return
+        if (!order || order.method === 'applePay') return
+
+        const gateway = readGooglePayGateway(order)
+        if (!gateway) return
+
+        const actual = readGooglePayEnvironment(order)
+        const expected = String(gateway).toLowerCase() === 'unlimint' ? 'TEST' : 'PRODUCTION'
+        if (actual === expected) return
+
+        tipGatewayEnvDetailEl.innerHTML =
+          '当前 gateway=<code>' +
+          gateway +
+          '</code>，创单 <code>environment</code>=<code>' +
+          actual +
+          '</code>，应为 <code>' +
+          expected +
+          '</code>（决定 <code>PaymentsClient.environment</code>）。配错易导致 Google Pay 失败（如 <code>OR_BIBED_11</code>）。'
+        tipGatewayEnvEl.hidden = false
+      }
 
       function setCustomPayBtnLoading() {
         customPayBtn.disabled = true
@@ -141,6 +213,8 @@
         const orderResponse = flow.createOrderResponse
         const redirectUrl = orderRequest.redirectUrl || ''
         const callbackUrl = orderRequest.callbackUrl || ''
+
+        updateGatewayEnvTip(orderResponse)
 
         const bridge = window.NativeBridge
         const hasBridge = !!(

@@ -13,7 +13,7 @@ import type {
 } from './types.js'
 import { ready as detectReady } from './ready.js'
 import { renderButton, resolveContainer } from './button.js'
-import { applyGooglePayTestDefaults, payWithGoogle } from './googlePay.js'
+import { payWithGoogle } from './googlePay.js'
 import { payWithApple } from './applePay.js'
 import { normalizeCreateOrderResponse, PayApiClient, PayApiError } from './api.js'
 import { describePayResponse, describeS3ds, PaymentActionView } from './actions.js'
@@ -92,11 +92,7 @@ export {
 export { describePayResponse, describeS3ds } from './actions.js'
 export { getApiEndpoints, resolvePayApiConfig, resolveEnvironment } from './endpoints.js'
 export { buildAlchemyPayRequest } from './normalize.js'
-export {
-  GOOGLE_PAY_TEST_DEFAULTS,
-  GOOGLE_PAY_CALLBACK_INTENTS,
-  applyGooglePayTestDefaults
-} from './googlePay.js'
+export { GOOGLE_PAY_CALLBACK_INTENTS } from './googlePay.js'
 export { DEFAULT_BRIDGE_NAME, getNativeBridge, normalizeBridgeName } from './bridge.js'
 
 function validateConfig(config: PaySdkConfig): void {
@@ -149,7 +145,7 @@ function runtimeConfigFromOrder(
   onWalletAuthorized: (result: PayResult) => void | Promise<void>,
   onAuthorizePay: (result: PayResult) => void | Promise<void>
 ): RuntimeWalletConfig {
-  // Google Pay PaymentsClient.environment + TEST defaults: create-order only (not init.environment)
+  // Google Pay PaymentsClient.environment: create-order only (not init.environment)
   const walletEnvironment = resolveEnvironment(order.environment)
   const common = {
     container: config.container,
@@ -162,10 +158,7 @@ function runtimeConfigFromOrder(
   }
 
   if (order.method === 'googlePay') {
-    const paymentScript =
-      walletEnvironment === 'TEST'
-        ? applyGooglePayTestDefaults(order.paymentScript)
-        : order.paymentScript
+    const paymentScript = order.paymentScript
     const card = paymentScript.allowedPaymentMethods[0]
     if (!card?.tokenizationSpecification) {
       throw new Error('Create order response is missing Google Pay tokenizationSpecification')

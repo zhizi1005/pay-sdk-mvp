@@ -2,3 +2,4 @@ node_modules/
 dist/
 demo/pay-sdk.js
 package-lock.json
+output/**/*.js

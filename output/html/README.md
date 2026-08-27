@@ -14,7 +14,7 @@
 1. Bridge：`openPayChallenge(shellUrl, jsonPayload)` / `openPayMethod(shellUrl, jsonPayload)`。
 2. Native 先 `loadUrl(shellUrl)`，再注入并调用上述全局函数（建议 payload Base64 后再 `evaluateJavascript`）。
 3. Challenge：向 `action` POST `MD` / `JWT`，目标为页内 iframe。
-4. Method：隐藏 iframe，向 `methodUrl` POST `threeDSMethodData`；原收银台继续 poll，之后可能再出 `s3ds` / `webUrl`。
+4. Method：隐藏 iframe，向 `methodUrl` POST `threeDSMethodData`；原收银台继续查单，之后可能再出 `s3ds` / `webUrl`。
 
 ## 托管示例
 

@@ -1,7 +1,7 @@
 # Dependencies
 node_modules/
 
-# Build output (output/pay.min.js and output/ramp-pay/v1/pay.min.js are copied on build and committed)
+# Build output
 dist/
 
 # Logs

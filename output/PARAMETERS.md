@@ -1,211 +1,75 @@
-# RampPay.init 参数说明（商户最终版）
+# RampPay.init 参数说明
+
+**查表用文档**。接入流程、示例代码见 [SDK.md](./SDK.md)；App 二次动作见 [WEBVIEW.md](./WEBVIEW.md)。
 
 图例：**必传** = 必须提供，否则 `init` 抛错；**条件** = 某种用法下必传。
-
-SDK 编排：**商户已创建订单** → 钱包授权 → 支付 →（需要时）查询。  
-`order` 为创建订单**响应**。SDK **不**调创建订单、**不**签名；后续接口带头 `payment-hub-token`。
-
-接入流程见 [SDK.md](./SDK.md)；App 二次动作见 [WEBVIEW.md](./WEBVIEW.md)。
-
-唤起钱包有两种方式（可只选其一，也可同时提供官方按钮与自定义入口）：
-
-- **SDK 渲染官方按钮**：传 `container`，`ready()` 后 `mount()`
-- **商户自定义按钮**：可不传 `container`；`ready()` resolve 表示可点击；用户点击时同步调 `pay()`
 
 ---
 
 ## 1. 顶层参数
 
-| 参数              | 类型                     |  必传  | 默认值           | 说明                                                                                                                         |
-| ----------------- | ------------------------ | :----: | ---------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `container`       | `string \| HTMLElement`  |  条件  | —                | 使用 `mount()` 时必传；仅自定义按钮 + `pay()` 时可省略                                                                       |
-| `order`           | `object`                 | **是** | —                | 创建订单响应；须含 `orderNo` / `paymentScript` / `token`                                                                     |
-| `environment`     | `'TEST' \| 'PRODUCTION'` |   否   | `'PRODUCTION'`   | 内置 API 根域名（及 Checkout Risk 等）；**不**决定 Google Pay `PaymentsClient.environment`（见创单响应 `order.environment`） |
-| `api`             | `object`                 |   否   | 内置生产域       | 可传 `headers` / `pollIntervalMs` / `pollTimeoutMs`；**无需** appSecret                                                      |
-| `actionMode`      | `'callback' \| 'auto'`   |   否   | `'callback'`     | 二次动作如何打开，见下方「二次动作」；**App WebView 请用 `callback`**                                                        |
-| `bridgeName`      | `string`                 |   否   | `'NativeBridge'` | App JS Bridge 挂载名（`window[bridgeName]`）；须与 Native 注入名一致；省略或空则 `NativeBridge`                              |
-| `openAction`      | `(action) => boolean…`   |   否   | —                | `auto` 时先调用；返回 `true` 表示已处理（如 Bridge），SDK 不再内置打开                                                       |
-| `onAction`        | `(action) => void`       |   否   | —                | 出现二次动作时始终回调；默认 `callback` 下由商户自行打开（App 调 Bridge）                                                    |
-| `onSuccess`       | `(result) => void`       |   否   | —                | 支付直接成功，或轮询查单到成功态                                                                                             |
-| `onComplete`      | `(result) => void`       |   否   | —                | 编排结束（含非终态 `s3dsComplete`）                                                                                          |
-| `onError`         | `(error: Error) => void` |   否   | —                | API / 钱包失败、查单失败态、超时等                                                                                           |
-| `onCancel`        | `() => void`             |   否   | —                | 用户关闭 Google / Apple Pay 钱包 sheet（未完成授权）                                                                         |
-| `onStatusChange`  | `(order) => void`        |   否   | —                | 每次查单响应都会回调当前 `order`；可用于日志、页面状态或自定义文案                                                           |
-| `onRiskCollected` | `(info) => void`         |   否   | —                | 风控预采集结束后回调；含 `fingerprintId` 与支付 body 用的 `risk` 字段                                                        |
-| `onOrderCreated`  | `(order) => void`        |   否   | —                | `ready()` 规范化并接受传入订单后回调；仅回传当前 `order`，**不是** SDK 自己创单                                              |
-
-### 示例：SDK 渲染官方按钮
-
-```js
-const sdk = RampPay.init({
-  container: '#pay-container',
-  order: createOrderResponseFromYourServer,
-  api: {
-    pollIntervalMs: 2000,
-    pollTimeoutMs: 300000
-  },
-  onAction(action) {
-    console.log(action)
-  },
-  onSuccess(result) {
-    console.log(result.orderNo, result.order && result.order.orderState)
-  },
-  onError(error) {
-    console.error(error)
-  },
-  onCancel() {
-    console.log('cancelled')
-  }
-})
-
-sdk.ready().then(function () {
-  sdk.mount()
-})
-```
-
-### 示例：商户自定义按钮
-
-```js
-const btn = document.getElementById('pay-now')
-btn.disabled = true
-btn.textContent = '加载中'
-
-const sdk = RampPay.init({
-  // 可不传 container
-  order: createOrderResponseFromYourServer,
-  onSuccess(result) {
-    console.log(result.orderNo)
-  },
-  onError(error) {
-    console.error(error)
-  },
-  onCancel() {
-    console.log('cancelled')
-  },
-  onAction(action) {
-    console.log(action)
-  }
-})
-
-// ready() resolve = 可点击通知
-sdk
-  .ready()
-  .then(function () {
-    btn.disabled = false
-    btn.textContent = '确认'
-  })
-  .catch(function (err) {
-    console.warn(err.message)
-  })
-
-// 须在用户点击的同步栈内调用
-btn.addEventListener('click', function () {
-  sdk.pay()
-})
-```
-
-实例方法完整说明见 [SDK.md §5](./SDK.md)：`ready` / `mount` / `pay` / `openAction` / `getLastTraceId` / `destroy`。
-
-### API 与轮询
-
-API 根域名：`https://api.alchemypay.org`
-
-- 业务成功：`returnCode === '0000'`
-- 轮询默认间隔 `2000` ms，最长 `300000` ms（5 分钟）
-- `api.headers`：为 SDK 请求附加自定义请求头
-- `api.pollIntervalMs` / `api.pollTimeoutMs`：控制查单轮询节奏
-- `api.createOrderUrl` / `validateMerchantUrl` / `payUrl` / `queryOrderUrl`：仅在需要代理或自定义转发时覆盖
-
-### 二次动作
-
-无论 `actionMode` 为何，出现二次动作时都会先触发 `onAction`。打开方式分两轨：
-
-#### 纯浏览器（可对齐收银台 H5）
-
-设 `actionMode: 'auto'`（可与收银台支付二次动作对齐，**不含 KYC**）：
-
-| `action.type`   | SDK 内置行为                           | 原页 poll |
-| --------------- | -------------------------------------- | --------- |
-| `webUrl`/`s3ds` | `location.assign` 整页离开             | **停**    |
-| `threeDS`       | 页内遮罩 + named iframe POST（MD/JWT） | 继续      |
-| `threeDSMethod` | 隐藏 iframe POST                       | 继续      |
-
-结算时 SDK 会清理页内遮罩；**不会**代调结果跳转 URL，由商户在 `onSuccess` / `onComplete` 自行处理。
-
-#### App WebView（默认）
-
-保持 `actionMode: 'callback'`（默认）：只 `onAction`，**不**自动打开；原页继续轮询。  
-在 `onAction` 用 `sdk.getBridge()`（或 `RampPay.getNativeBridge(bridgeName)`）调 `openPayWebUrl` / `openPayChallenge` / `openPayMethod`。`bridgeName` 默认 `'NativeBridge'`，见 [WEBVIEW.md](./WEBVIEW.md)。
-
-**禁止**：
-
-- 在收银台 WebView 内对 `webUrl` / `s3ds` 做整页跳转
-- `actionMode: 'auto'` 却只在 `onAction` 里开 Bridge（会双开 / 整页跳走）
-  - 正确：App 用 `callback`；或 `auto` + `openAction` 返回 `true` 接管打开
+| 参数              | 类型                    |  必传  | 默认值           | 说明                                                                          |
+| ----------------- | ----------------------- | :----: | ---------------- | ----------------------------------------------------------------------------- |
+| `container`       | `string \| HTMLElement` |  条件  | —                | 使用 `mount()` 时必传；仅自定义按钮 + `pay()` 时可省略                        |
+| `order`           | `object`                | **是** | —                | 创建订单响应 `data`；须含 `orderNo` / `paymentScript` / `token`               |
+| `api`             | `object`                |   否   | —                | 可选 `headers`、`pollIntervalMs`（默认 2000）、`pollTimeoutMs`（默认 300000） |
+| `actionMode`      | `'callback' \| 'auto'`  |   否   | `'callback'`     | 二次动作如何打开；**App 请用 `callback`**，见 [SDK.md §7](./SDK.md)           |
+| `bridgeName`      | `string`                |   否   | `'NativeBridge'` | App JS Bridge 挂载名；须与 Native 注入名一致                                  |
+| `openAction`      | `(action) => boolean`   |   否   | —                | 仅 `auto` 时：返回 `true` 表示商户已自行处理二次动作                          |
+| `onAction`        | `(action) => void`      |   否   | —                | 出现二次动作时回调；App 内在此调 Bridge                                       |
+| `onSuccess`       | `(result) => void`      |   否   | —                | **支付成功**                                                                  |
+| `onComplete`      | `(result) => void`      |   否   | —                | 本次流程结束（**不等于**一定支付成功）                                        |
+| `onError`         | `(error) => void`       |   否   | —                | 支付失败、超时或不可恢复错误                                                  |
+| `onCancel`        | `() => void`            |   否   | —                | 用户关闭钱包，未完成授权                                                      |
+| `onStatusChange`  | `(order) => void`       |   否   | —                | 可选；查单过程中订单状态更新（日志 / UI）                                     |
+| `onRiskCollected` | `(info) => void`        |   否   | —                | 可选；风控预采集结束                                                          |
+| `onOrderCreated`  | `(order) => void`       |   否   | —                | 可选；`ready()` 接受订单后回调（**不是** SDK 自己创单）                       |
 
 ---
 
-## 2. `order`（创建订单响应）
+## 2. `order`（创建订单响应 `data`）
 
-| 参数            | 类型     |  必传  | 说明                                                                                                                                  |
-| --------------- | -------- | :----: | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `orderNo`       | `string` | **是** | 平台订单号                                                                                                                            |
-| `paymentScript` | `object` | **是** | Google / Apple 原生参数                                                                                                               |
-| `token`         | `string` | **是** | 请求头 `payment-hub-token`                                                                                                            |
-| `environment`   | `string` |   否   | `'TEST'` \| `'PRODUCTION'`；决定 Google Pay `PaymentsClient.environment`；也可写在 `paymentScript` 内由 SDK 提升；缺省按 `PRODUCTION` |
-| `risk`          | `object` |   否   | Forter / Checkout / WorldPay                                                                                                          |
+| 字段            | 必传 | 说明                        |
+| --------------- | :--: | --------------------------- |
+| `orderNo`       |  是  | 平台订单号                  |
+| `paymentScript` |  是  | Google / Apple 钱包唤起参数 |
+| `token`         |  是  | SDK 后续请求所用凭证        |
+| `risk`          |  否  | 风控开关；由创单响应下发    |
 
-创建订单**请求**字段由服务端调用 openapi，不传入 SDK。见 [SERVER.md](./SERVER.md)。
-
----
-
-## 3. `risk`（创建订单下发）
-
-仅 `enabled === true` 的厂商会在 `ready()` 预采集并写入支付 body；失败不阻断支付。
-
-Fingerprint **不在**创建订单下发：SDK `init` 采集，仅请求头 `fingerprint-id`。
-
-| 块         | 采集结果（内部）                | 支付 body 上送字段              | 说明                       |
-| ---------- | ------------------------------- | ------------------------------- | -------------------------- |
-| `forter`   | `risk.forter.token`             | `businessParams.cookie`         | 可只传 `{ enabled: true }` |
-| `checkout` | `risk.checkout.deviceSessionId` | `businessParams.checkoutCookie` | 可覆盖 `publicKey` 等      |
-| `worldPay` | `risk.worldPay.sessionId`       | 顶层 `sessionId`                | 至少需要动态 `jwt`         |
+创单**请求**字段见平台 API 文档。服务端与 H5 交接见 [SERVER.md](./SERVER.md)。
 
 ---
 
-## 4. 成功回调结果（`onSuccess` / `onComplete`）
+## 3. 回调结果（`onSuccess` / `onComplete`）
 
 ```js
 {
   orderNo: 'ord_xxx',
-  order: { /* 查单结果，如有；可看 orderState */ }
+  order: { /* 查单结果，如有 */ }
 }
 ```
 
-## 5. 回调语义
+| 回调                 | 含义                                  |
+| -------------------- | ------------------------------------- |
+| `onSuccess(result)`  | **支付成功** — 业务跳转、关单以此为准 |
+| `onError(error)`     | 支付失败、超时或不可恢复错误          |
+| `onComplete(result)` | 流程结束（**不等于**一定支付成功）    |
+| `onCancel()`         | 用户关闭钱包，未完成授权              |
+| `onAction(action)`   | 需要二次动作（webUrl / 3DS 等）       |
 
-| 场景                                                                                        | 回调                                           |
-| ------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| 无二次动作且支付直接成功，或查单 `orderState` 为 `2` / `5`                                  | `onSuccess(result)`，随后 `onComplete(result)` |
-| 查单 `orderState` 为 `0` / `6` / `7` / `8` / `9` / `10` / `11`，或 API / 钱包失败、轮询超时 | `onError(error)`                               |
-| 查单 `orderState` 为 `3` / `4`（`TRANSFER`），或仅 `s3dsComplete === true`                  | **仅** `onComplete(result)`                    |
-| 用户关闭钱包 sheet                                                                          | `onCancel()`                                   |
-| 需二次动作                                                                                  | `onAction(action)`                             |
+成功时：先 `onSuccess`，再 `onComplete`。
 
-因此：`onComplete` 表示流程结束，**不等于一定支付成功**；支付成功以 `onSuccess` 为准。
+---
 
-## 6. 实例与全局能力
+## 4. 实例与全局能力
 
-| 名称                               | 说明                                                                                            |
-| ---------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `sdk.openAction(action)`           | 用 SDK 内置打开器执行二次动作；适合纯浏览器 `callback` 模式下，在 `onAction` 收到动作后手动调用 |
-| `sdk.getLastTraceId()`             | 读取最近一次 openapi 响应 `traceId`，便于联调排障                                               |
-| `sdk.getBridgeName()`              | 实际使用的 Bridge 挂载名；未传 `bridgeName` 时为 `NativeBridge`                                 |
-| `sdk.getBridge()`                  | `window[sdk.getBridgeName()]`；App 未注入时为 `undefined`                                       |
-| `RampPay.getNativeBridge(name)`    | 按名读取 Bridge；`name` 省略时默认 `NativeBridge`                                               |
-| `window.__paySdkSecondaryReturn()` | App 二级页命中 `redirectUrl` / `callbackUrl` 并关栏后调用，催主收银台页立刻查单                 |
+| 名称                                                          | 说明                                       |
+| ------------------------------------------------------------- | ------------------------------------------ |
+| `sdk.ready()` / `sdk.mount()` / `sdk.pay()` / `sdk.destroy()` | 见 [SDK.md §6](./SDK.md)                   |
+| `sdk.openAction(action)`                                      | 纯浏览器下手动打开二次动作                 |
+| `sdk.getLastTraceId()`                                        | 联调排障用，见 [README.md](./README.md)    |
+| `sdk.getBridge()` / `sdk.getBridgeName()`                     | App：读取 Native 注入的 Bridge             |
+| `RampPay.getNativeBridge(name)`                               | 按名读取 Bridge；省略时默认 `NativeBridge` |
+| `window.__paySdkSecondaryReturn()`                            | App 二级页关栏后调用，催主收银台立刻查单   |
 
-注意区分：
-
-- 配置项 `openAction`：是 `actionMode: 'auto'` 时的自定义拦截器，返回 `true` 代表已处理
-- 实例方法 `sdk.openAction()`：是让 SDK 立即用内置方式打开当前动作
+配置项 `openAction`（拦截器）与实例方法 `sdk.openAction()`（立即打开）不要混淆，见 [SDK.md](./SDK.md)。

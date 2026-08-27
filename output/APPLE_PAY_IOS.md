@@ -43,11 +43,11 @@
 
 | 角色       | 职责                                                                                    |
 | ---------- | --------------------------------------------------------------------------------------- |
-| Pay SDK    | 发起 `ApplePaySession`、调域名校验接口、提交支付、轮询订单                              |
-| 商户服务端 | 创建订单，返回 `paymentScript` / `token` / 可选 `validateMerchantUrl`                   |
+| Pay SDK    | 发起 Apple Pay、完成域名校验、提交支付与查单（商户无需额外调接口）                      |
+| 商户服务端 | 创建订单，返回 `paymentScript` / `token`                                                |
 | Native App | 注入 `window.NativeBridge`、打开二级抽屉、回跳后调用 `window.__paySdkSecondaryReturn()` |
 
-Apple Pay 域名校验请求由 SDK 调 `POST /payment-hub/domain/verify`；商户前端不需要自己再签名该接口。
+Apple Pay 域名校验由 SDK 自动完成；商户 H5 **不需要**自行签名或调用校验接口。
 
 ---
 
@@ -57,7 +57,7 @@ Apple Pay 域名校验请求由 SDK 调 `POST /payment-hub/domain/verify`；商�
 | ------------------------------------- | ----------------------------------------------------------------- |
 | `ready()` 失败，提示 Apple Pay 不支持 | 非 Safari WebKit 环境异常、非 `WKWebView`、设备 / 系统不支持      |
 | 钱包无法唤起                          | 真机无可用 Wallet，或 Apple Pay 未启用                            |
-| Merchant validation 失败              | 域名未校验，或订单下发 `validateMerchantUrl` / 环境不匹配         |
+| Merchant validation 失败              | 收银台域名未完成 Apple Pay on the Web 校验                        |
 | 二次动作后无法回主流程                | App 未实现 Bridge 抽屉或未调用 `window.__paySdkSecondaryReturn()` |
 
 联调建议：

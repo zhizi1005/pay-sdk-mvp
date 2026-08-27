@@ -1,4 +1,4 @@
-# App WebView 接入指南（商户最终版）
+# App WebView 接入指南
 
 面向：**商户 Android / iOS App** 与内嵌收银台 H5。  
 可单独复制本文给 App 同学落地。
@@ -10,7 +10,7 @@ SDK 出现二次动作时**只回调** `onAction`，**不会**自动打开页面
 - App **必须**使用默认 `actionMode: 'callback'`（或显式传入 `'callback'`）
 - **不要**在 App 里设 `actionMode: 'auto'` 却只在 `onAction` 开 Bridge：`auto` 会对 `webUrl`/`s3ds` 做收银台内 `location.assign`，打断原页轮询并可能与抽屉双开
 - 若确需 `auto`，须同时提供 `openAction` 且返回 `true` 表示 Bridge 已处理
-- 纯浏览器收银台用 `auto` 的说明见 [SDK.md §6.1](./SDK.md) / [PARAMETERS.md](./PARAMETERS.md)，**不是**本文 App 路径
+- 纯浏览器收银台用 `auto` 的说明见 [SDK.md §7.1](./SDK.md)，**不是**本文 App 路径
 
 H5 SDK 接入见 [SDK.md](./SDK.md)；参考壳页见 [`html/`](./html/)。
 
@@ -42,16 +42,16 @@ H5 SDK 接入见 [SDK.md](./SDK.md)；参考壳页见 [`html/`](./html/)。
        · webUrl / s3ds     → loadUrl(支付 URL)
        · threeDS           → loadUrl(商户 Challenge 壳页) + 注入 payload
        · threeDSMethod     → loadUrl(商户 Method 壳页) + 注入 payload
-  → 原收银台 WebView 里 SDK 继续 poll order/detail
+  → 原收银台 WebView 里 SDK 继续查单
   → 轮询中若出现新的 s3dsUrl → 再 onAction(s3ds) → openPayWebUrl 替换抽屉内容
   → 用户完成后：
-       A) 原页 poll 终态 onSuccess / onError → closePayWebUrl()
+       A) 原页查单到终态 onSuccess / onError → closePayWebUrl()
        B) 二级页导航命中 redirectUrl/callbackUrl → Native dismiss
           → 主 WebView 调 window.__paySdkSecondaryReturn() → SDK 立刻查单
           → 终态同样 onSuccess / onError（落地本身不等于成功）
 ```
 
-无二次动作时：关钱包 sheet 后直接 `onSuccess`（不强制 poll）。
+无二次动作时：关钱包 sheet 后直接 `onSuccess`（不强制继续查单）。
 
 **禁止**在收银台 WebView 内对 `webUrl` / `s3ds` 执行整页跳转（如 `location.assign` / `location.href`），否则原页轮询中断。
 
@@ -325,12 +325,12 @@ iOS 补充：
 
 ## 8. 与 SDK 行为对齐（勿踩坑）
 
-| 点              | 说明                                               |
-| --------------- | -------------------------------------------------- |
-| 二次动作默认    | 只 `onAction`，不自动开页；有二次动作时继续 poll   |
-| 无二次动作      | 直接 `onSuccess`                                   |
-| `webUrl`/`s3ds` | **禁止**收银台整页跳转；必须 Bridge 开二级抽屉     |
-| App 主推        | `onAction` 调 Bridge（`openPayWebUrl` / 壳页方法） |
+| 点              | 说明                                                    |
+| --------------- | ------------------------------------------------------- |
+| 二次动作默认    | 只 `onAction`，不自动开页；有二次动作时主收银台继续查单 |
+| 无二次动作      | 直接 `onSuccess`                                        |
+| `webUrl`/`s3ds` | **禁止**收银台整页跳转；必须 Bridge 开二级抽屉          |
+| App 主推        | `onAction` 调 Bridge（`openPayWebUrl` / 壳页方法）      |
 
 ---
 
@@ -343,7 +343,7 @@ iOS 补充：
 - [ ] 创建订单 `redirectUrl`；命中后 dismiss + `__paySdkSecondaryReturn`
 - [ ] `onSuccess` / `onError` 调 `closePayWebUrl`
 - [ ] 未在收银台 WebView 对 `webUrl`/`s3ds` 做整页跳转
-- [ ] 联调确认原页仍在轮询 `order/detail`
+- [ ] 联调确认主收银台页仍在查单（未因整页跳转中断）
 - [ ] 离开收银台 `sdk.destroy()` 并关抽屉
 - [ ] iOS H5 Apple Pay 用真机 + Wallet + 已校验域名；不要把原生 PassKit 演示当成 SDK 路径
 - [ ] Google Pay **Production**：Pay Console **Domain + App** 均已过审；WebView 正确启用 Payment Request（见 [GOOGLE_PAY_ANDROID.md](./GOOGLE_PAY_ANDROID.md)）

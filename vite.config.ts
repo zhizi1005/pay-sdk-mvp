@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { defineConfig } from 'vite'
 
@@ -21,17 +21,5 @@ export default defineConfig({
     emptyOutDir: true,
     minify: 'esbuild',
     sourcemap: false
-  },
-  plugins: [
-    {
-      name: 'copy-pay-min-to-output',
-      closeBundle() {
-        const src = resolve(__dirname, 'dist/pay.min.js')
-        const destDir = resolve(__dirname, 'output/ramp-pay/v1')
-        mkdirSync(destDir, { recursive: true })
-        copyFileSync(src, resolve(__dirname, 'output/pay.min.js'))
-        copyFileSync(src, resolve(destDir, 'pay.min.js'))
-      }
-    }
-  ]
+  }
 })

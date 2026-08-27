@@ -81,7 +81,7 @@ Google 未为每个 `OR_BIBED_*` 提供独立深链；定义集中在故障排�
 
 与 Console 的 **App + Domain** 审批并列：
 
-- 创单 / Google Pay 使用 **`PRODUCTION`**（见创单响应 `order.environment` / `paymentScript.environment`）
+- Google Pay 使用 **Production** 环境（由创单响应 / 平台配置决定）
 - `merchantId` 与 Google Pay Console **生产商户**一致
 - 收银台页所在 **域名** 已在 Console 完成 **Web integration** 并获批
 - 宿主 App 已完成 **App integration**（包名 + 正确 SHA-256）并获批

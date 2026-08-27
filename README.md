@@ -15,7 +15,7 @@ Written in **TypeScript**; bundled to a single IIFE file with Vite.
 
 ```bash
 npm install
-npm run build      # type-check, minify dist/pay.min.js, copy to output/ + output/ramp-pay/v1/
+npm run build      # type-check, minify dist/pay.min.js (upload to CDN separately)
 npm run typecheck  # type-check only
 npm run demo       # build + serve demos at http://localhost:5173/
 npm run format     # prettier write
@@ -119,7 +119,7 @@ cashier WebView to `webUrl` / `s3ds`.
 
 ## Docs
 
-- [output/](output/) — **商户最终版交付包**（SDK 文件、接入文档、WebView、3DS 壳页）
+- [output/](output/) — **商户交付包**（接入文档、WebView、3DS 壳页；SDK 走官方 CDN）
 - [output/SDK.md](output/SDK.md) — merchant H5 / SDK
 - [output/WEBVIEW.md](output/WEBVIEW.md) — App WebView / Bridge
 - [output/GOOGLE_PAY_ANDROID.md](output/GOOGLE_PAY_ANDROID.md) — Android Production（`OR_BIBED_11` / `13` / `15` 与官方链接）

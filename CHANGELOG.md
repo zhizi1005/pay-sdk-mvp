@@ -2,6 +2,10 @@
 
 版本号 = `package.json` `version` = `window.RampPay.version`（构建写入）。CDN 目录 `ramp-pay/v1/` 表示 major 线，不随 patch/minor 更换。
 
+## 1.1.1 — 2026-08-27
+
+- 去掉支付 / 创建订单接口响应的完整 JSON `console.log`，避免商户生产页泄露联调日志
+
 ## 1.1.0 — 2026-08-19
 
 - 支持 `init({ bridgeName })`：传入则用该 JS Bridge 挂载名，省略或空字符串仍为 `NativeBridge`；提供 `sdk.getBridge()` / `RampPay.getNativeBridge`

@@ -2,8 +2,6 @@
 
 本目录提供 App 二级 WebView 使用的 **Challenge / Method** 参考页。商户可改名、改样式后自托管；URL 由收银台 H5 传给 Native Bridge（见 [WEBVIEW.md](../WEBVIEW.md)）。
 
-与仓库内 `demo/3ds-challenge.html`、`demo/3ds-method.html` 行为同源，便于联调对照。
-
 ## 文件
 
 | 文件                                         | 全局函数                                                        | Native 注入时机          |

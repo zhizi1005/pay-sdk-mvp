@@ -17,8 +17,6 @@
 | [`PARAMETERS.md`](./PARAMETERS.md)                   | `RampPay.init` 参数表                                                              |
 | [`html/`](./html/)                                   | Challenge / Method 参考壳页（可自托管）                                            |
 
-构建时 `npm run build` 会把最新 `dist/pay.min.js` 同步到 `pay.min.js` 与 `ramp-pay/v1/pay.min.js`。
-
 将 `ramp-pay/v1/pay.min.js` 上传到 `https://static.alchemypay.org/ramp-pay/v1/pay.min.js`（`Content-Type: application/javascript`；`v1` 建议短缓存或发布时刷 CDN）。
 
 ## 角色与阅读顺序

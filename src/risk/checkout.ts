@@ -1,6 +1,10 @@
 import type { Environment, RiskCheckoutConfig } from '../types.js'
 import { loadScript } from '../loader.js'
 import { mergeCheckoutConfig } from './defaults.js'
+import { withTimeout } from './timeout.js'
+
+/** 对齐 ramp-vue `RISK_TIMEOUT_MS`（脚本加载）；整段采集含 publishRiskData 一并封顶。 */
+const TIMEOUT_MS = 8_000
 
 interface CheckoutRiskInstance {
   publishRiskData(): Promise<string>
@@ -37,7 +41,7 @@ async function ensureRiskJs(scriptUrl: string, integrity: string): Promise<Check
 /**
  * Checkout Risk.js 采集 deviceSessionId（SDK 3.3.1）。
  * https://www.checkout.com/docs/developer-resources/sdks/risk-sdks/risk-js-sdk
- * enabled 由 collectRisk 判断；失败返回 ""，不阻断支付。
+ * enabled 由 collectRisk 判断；失败、脚本挂起或超过 8s 返回 ""，不阻断支付。
  * environment=TEST 且未下发 publicKey 时，使用沙盒默认 key。
  */
 export async function collectCheckout(
@@ -47,7 +51,7 @@ export async function collectCheckout(
   if (cachedDeviceSessionId) return cachedDeviceSessionId
   if (inflight) return inflight
 
-  inflight = (async () => {
+  const run = (async () => {
     try {
       const merged = mergeCheckoutConfig(cfg, environment)
       if (!merged.publicKey) return ''
@@ -60,10 +64,13 @@ export async function collectCheckout(
       return id
     } catch {
       return ''
-    } finally {
-      inflight = null
     }
   })()
 
+  // 并发复用同一条带超时的 Promise，避免后加入的调用方重新挂死
+  inflight = withTimeout(run, TIMEOUT_MS, '')
+  void run.finally(() => {
+    inflight = null
+  })
   return inflight
 }

@@ -1,6 +1,6 @@
 import type { RuntimeWalletConfig } from './types.js'
 import { normalizeAppleResult, toError } from './normalize.js'
-import { resolveRiskCollection } from './risk/index.js'
+import { awaitRiskForPay, resolveRiskCollection } from './risk/index.js'
 
 const APPLE_PAY_VERSION = 3
 
@@ -71,7 +71,7 @@ export function payWithApple(config: RuntimeWalletConfig): void {
       let completed = false
       try {
         const base = normalizeAppleResult(event.payment)
-        const risk = await riskPromise
+        const risk = await awaitRiskForPay(riskPromise)
         const authorized = { ...base, risk }
         // 关 sheet 前完成支付；completePayment 后稍等系统 sheet 动画，再 onAction / 二级抽屉
         await config.onAuthorizePay?.(authorized)

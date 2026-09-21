@@ -162,7 +162,7 @@ API 根域名：`https://api.alchemypay.org`（内置见 [`src/endpoints.ts`](..
 
 ## 3. `risk`（创建订单下发）
 
-仅 `enabled === true` 的厂商会在 `ready()` 预采集并写入支付 body；失败不阻断支付。
+仅 `enabled === true` 的厂商会在 `ready()` 预采集并写入支付 body；失败、超时（授权最多再等 8s）不阻断支付，对应字段可为空。
 
 Fingerprint **不在**创建订单下发：SDK `init` 采集，仅请求头 `fingerprint-id`。
 

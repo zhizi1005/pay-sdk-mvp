@@ -1,6 +1,6 @@
 import type { GooglePayParams, PayResult, RuntimeWalletConfig } from './types.js'
 import { normalizeGoogleResult, isGoogleCancel, toError } from './normalize.js'
-import { resolveRiskCollection } from './risk/index.js'
+import { awaitRiskForPay, resolveRiskCollection } from './risk/index.js'
 
 /** 固定 callbackIntents；须配合 PaymentsClient.paymentDataCallbacks */
 export const GOOGLE_PAY_CALLBACK_INTENTS: ['PAYMENT_AUTHORIZATION'] = ['PAYMENT_AUTHORIZATION']
@@ -56,7 +56,7 @@ async function onPaymentAuthorized(
   }
 
   try {
-    const risk = await pending.riskPromise
+    const risk = await awaitRiskForPay(pending.riskPromise)
     const authorized = { ...normalizeGoogleResult(paymentData), risk }
     // 关弹窗前等支付结果；失败则 ERROR，不关 SUCCESS、不开抽屉
     await config.onAuthorizePay?.(authorized)

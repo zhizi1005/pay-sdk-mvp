@@ -94,7 +94,13 @@ export interface RiskWorldPayConfig {
 /** 创建订单下发的风控开关（Fingerprint 由 SDK 独立采集，不在此） */
 export interface CreateOrderRisk {
   forter?: RiskForterConfig
+  /** 公开块名；配置同 RiskCheckoutConfig */
+  ck?: RiskCheckoutConfig
+  /** 公开块名；配置同 RiskWorldPayConfig */
+  wp?: RiskWorldPayConfig
+  /** @deprecated legacy wire；运行时与 ck 合并，短名覆盖 */
   checkout?: RiskCheckoutConfig
+  /** @deprecated legacy wire；运行时与 wp 合并，短名覆盖 */
   worldPay?: RiskWorldPayConfig
 }
 

@@ -1,6 +1,6 @@
 {
   "name": "pay-sdk-mvp",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "description": "Embeddable browser JS RampPay SDK for Google Pay and Apple Pay",
   "type": "module",
   "types": "dist/types/index.d.ts",

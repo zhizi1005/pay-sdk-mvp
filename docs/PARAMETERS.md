@@ -166,11 +166,11 @@ API 根域名：`https://api.alchemypay.org`（内置见 [`src/endpoints.ts`](..
 
 Fingerprint **不在**创建订单下发：SDK `init` 采集，仅请求头 `fingerprint-id`。
 
-| 块         | 采集结果（内部）                | 支付 body 上送字段              | 说明                       |
-| ---------- | ------------------------------- | ------------------------------- | -------------------------- |
-| `forter`   | `risk.forter.token`             | `businessParams.cookie`         | 可只传 `{ enabled: true }` |
-| `checkout` | `risk.checkout.deviceSessionId` | `businessParams.checkoutCookie` | 可覆盖 `publicKey` 等      |
-| `worldPay` | `risk.worldPay.sessionId`       | 顶层 `sessionId`                | 至少需要动态 `jwt`         |
+| 块       | 采集结果（内部） | 支付 body 上送字段              | 说明                       |
+| -------- | ---------------- | ------------------------------- | -------------------------- |
+| `forter` | Forter token     | `businessParams.cookie`         | 可只传 `{ enabled: true }` |
+| `ck`     | deviceSessionId  | `businessParams.checkoutCookie` | 可覆盖 `publicKey` 等      |
+| `wp`     | sessionId        | 顶层 `sessionId`                | 至少需要动态 `jwt`         |
 
 ---
 

@@ -13,15 +13,22 @@ function isEnabled(enabled?: boolean): boolean {
   return enabled === true
 }
 
+/** 短名覆盖 legacy；仅一侧有值时用该侧。 */
+function pickRiskBlock<T extends object>(short?: T, legacy?: T): T | undefined {
+  if (short && legacy) return { ...legacy, ...short }
+  return short ?? legacy
+}
+
 function snapshotOf(promise: Promise<PayRiskPayload>): PayRiskPayload {
   const snap = riskSnapshots.get(promise)
   return snap ? { ...snap } : {}
 }
 
 /**
- * 按 Forter → Checkout → WorldPay 并行采集（支付 body）。
+ * 按 Forter → ck → wp 并行采集（支付 body）。
  * Fingerprint 由 SDK init 独立采集，仅走请求头 fingerprint-id。
  * 仅 enabled === true 的块会执行；失败字段不写入 payload。
+ * 创单公开块名为 ck / wp；legacy checkout / worldPay 运行时仍可读。
  */
 export function collectRisk(
   risk?: CreateOrderRisk,
@@ -30,6 +37,9 @@ export function collectRisk(
   const payload: PayRiskPayload = {}
   const promise = (async () => {
     if (!risk) return payload
+
+    const ckCfg = pickRiskBlock(risk.ck, risk.checkout)
+    const wpCfg = pickRiskBlock(risk.wp, risk.worldPay)
 
     const tasks: Array<Promise<void>> = []
 
@@ -43,9 +53,9 @@ export function collectRisk(
       )
     }
 
-    if (isEnabled(risk.checkout?.enabled)) {
+    if (isEnabled(ckCfg?.enabled)) {
       tasks.push(
-        collectCheckout(risk.checkout, environment)
+        collectCheckout(ckCfg, environment)
           .then((deviceSessionId) => {
             if (deviceSessionId) payload.checkout = { deviceSessionId }
           })
@@ -53,9 +63,9 @@ export function collectRisk(
       )
     }
 
-    if (isEnabled(risk.worldPay?.enabled)) {
+    if (isEnabled(wpCfg?.enabled)) {
       tasks.push(
-        collectWorldPay(risk.worldPay)
+        collectWorldPay(wpCfg)
           .then((sessionId) => {
             if (sessionId) payload.worldPay = { sessionId }
           })

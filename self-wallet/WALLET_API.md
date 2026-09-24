@@ -8,12 +8,12 @@
 
 ## 1. 适用场景与职责
 
-| 步骤                                       | 谁做                                           |
-| ------------------------------------------ | ---------------------------------------------- |
-| 签名创建订单                               | **商户服务端**（必做）                         |
-| 用 `paymentScript` 唤起官方 / 原生 GP/AP   | **商户客户端**                                 |
-| Fingerprint / Forter / Checkout / WorldPay | **商户客户端**（按创单 `risk`）                |
-| Apple 域名校验、支付、订单详情             | **商户客户端**（请求头带 `payment-hub-token`） |
+| 步骤                                     | 谁做                                           |
+| ---------------------------------------- | ---------------------------------------------- |
+| 签名创建订单                             | **商户服务端**（必做）                         |
+| 用 `paymentScript` 唤起官方 / 原生 GP/AP | **商户客户端**                                 |
+| Fingerprint / Forter / ck / wp           | **商户客户端**（按创单 `risk`）                |
+| Apple 域名校验、支付、订单详情           | **商户客户端**（请求头带 `payment-hub-token`） |
 
 签名规范：[API Sign](https://alchemypay.readme.io/docs/api-sign)。创建订单之后的接口**不签名**，不要把 `appSecret` 放到客户端。
 
@@ -53,7 +53,7 @@ sequenceDiagram
   MerchantServer->>Hub: POST signed createOrder
   Hub-->>MerchantServer: paymentScript token risk
   MerchantServer->>Client: order data
-  Client->>Risk: collect fingerprint forter checkout worldPay
+  Client->>Risk: collect fingerprint forter ck wp
   alt ApplePay
     Client->>Wallet: begin session
     Wallet->>Client: onvalidatemerchant
@@ -172,12 +172,12 @@ sequenceDiagram
 
 **Fingerprint 不在创单 `risk` 内**：建议始终采集，经请求头 `fingerprint-id` 传递。
 
-| 厂商          | 创单字段                                              | 送到哪里                                           | 官方文档                                                                                         |
-| ------------- | ----------------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| Fingerprint   | 无（独立）                                            | Header `fingerprint-id`                            | [Fingerprint JS Agent](https://dev.fingerprint.com/docs/js-agent)                                |
-| Forter        | `risk.forter.siteId`（可覆盖）                        | `businessParams.cookie`                            | [Forter front-end](https://docs.forter.com/front-end-integration)                                |
-| Checkout Risk | `risk.checkout.publicKey` / `scriptUrl` / `integrity` | `businessParams.checkoutCookie`（deviceSessionId） | [Checkout Risk.js](https://www.checkout.com/docs/developer-resources/sdks/risk-sdks/risk-js-sdk) |
-| WorldPay DDC  | `risk.worldPay.jwt` / `bin` / `actionUrl`             | 支付 body 顶层 `sessionId`                         | 用本包 [`html/worldpay-ddc.html`](./html/worldpay-ddc.html)                                      |
+| 厂商        | 创单字段                                        | 送到哪里                                           | 官方文档                                                                                |
+| ----------- | ----------------------------------------------- | -------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Fingerprint | 无（独立）                                      | Header `fingerprint-id`                            | [Fingerprint JS Agent](https://dev.fingerprint.com/docs/js-agent)                       |
+| Forter      | `risk.forter.siteId`（可覆盖）                  | `businessParams.cookie`                            | [Forter front-end](https://docs.forter.com/front-end-integration)                       |
+| ck          | `risk.ck.publicKey` / `scriptUrl` / `integrity` | `businessParams.checkoutCookie`（deviceSessionId） | [Risk.js](https://www.checkout.com/docs/developer-resources/sdks/risk-sdks/risk-js-sdk) |
+| wp          | `risk.wp.jwt` / `bin` / `actionUrl`             | 支付 body 顶层 `sessionId`                         | 用本包 [`html/worldpay-ddc.html`](./html/worldpay-ddc.html)                             |
 
 创单有值则覆盖 §7 默认值；无值用默认。
 
@@ -257,9 +257,9 @@ session.completeMerchantValidation(response.data)
 | `customParam.encryptedData`     | 是   | GP token 串 / AP `JSON.stringify(payment)`                                                       |
 | `customParam.addressLine1` 等   | 否   | 账单：`addressLine1`、`addressLine2`、`city`、`state`、`zip`、`country`、`firstName`、`lastName` |
 | `businessParams.cookie`         | 否   | Forter token                                                                                     |
-| `businessParams.checkoutCookie` | 否   | Checkout deviceSessionId                                                                         |
+| `businessParams.checkoutCookie` | 否   | ck deviceSessionId                                                                               |
 | `businessParams.dob`            | 否   | 可选扩展                                                                                         |
-| `sessionId`                     | 否   | WorldPay DDC SessionId                                                                           |
+| `sessionId`                     | 否   | wp sessionId                                                                                     |
 | `poaParams`                     | 否   | 有账单时：`address`←`addressLine1`，`postcode`←`zip`，以及 `city` / `state` / `country`          |
 
 #### 最小请求（Google Pay）
@@ -429,17 +429,17 @@ session.completeMerchantValidation(response.data)
 
 ### 7.3 风控默认（生产）
 
-| 厂商                   | 默认                                                                      |
-| ---------------------- | ------------------------------------------------------------------------- |
-| Fingerprint `apiKey`   | `BhQq2qOOYR3oeMTEKIc2`                                                    |
-| Fingerprint loader     | `https://fp.alchemypay.org/web/v3/BhQq2qOOYR3oeMTEKIc2/loader_v3.9.9.js`  |
-| Fingerprint endpoint   | `https://fp.alchemypay.org`                                               |
-| Forter `siteId`        | `b132efccafac`                                                            |
-| Checkout `publicKey`   | `pk_aldlsnx6lhkjggag4qe2nff4c4h`                                          |
-| Checkout script        | `https://risk.checkout.com/cdn/risk/3.3.1/risk.js`                        |
-| Checkout SRI           | `sha384-bdtH448zhkYQQTsR0FB6/ITKVZ1zdSi5Dv5NN5AILI1ZBIMJFsqKs8Upm6bWD+DL` |
-| WorldPay `actionUrl`   | `https://centinelapi.cardinalcommerce.com/V1/Cruise/Collect`              |
-| WorldPay `jwt` / `bin` | 无默认；`jwt` 须由创单下发才可采集                                        |
+| 厂商                 | 默认                                                                      |
+| -------------------- | ------------------------------------------------------------------------- |
+| Fingerprint `apiKey` | `BhQq2qOOYR3oeMTEKIc2`                                                    |
+| Fingerprint loader   | `https://fp.alchemypay.org/web/v3/BhQq2qOOYR3oeMTEKIc2/loader_v3.9.9.js`  |
+| Fingerprint endpoint | `https://fp.alchemypay.org`                                               |
+| Forter `siteId`      | `b132efccafac`                                                            |
+| ck `publicKey`       | `pk_aldlsnx6lhkjggag4qe2nff4c4h`                                          |
+| ck script            | `https://risk.checkout.com/cdn/risk/3.3.1/risk.js`                        |
+| ck SRI               | `sha384-bdtH448zhkYQQTsR0FB6/ITKVZ1zdSi5Dv5NN5AILI1ZBIMJFsqKs8Upm6bWD+DL` |
+| wp `actionUrl`       | `https://centinelapi.cardinalcommerce.com/V1/Cruise/Collect`              |
+| wp `jwt` / `bin`     | 无默认；`jwt` 须由创单下发才可采集                                        |
 
 ### 7.4 其它
 

@@ -71,7 +71,7 @@ iframe.contentWindow.postMessage(
 )
 ```
 
-监听 Cardinal 回传，解析 `SessionId`，写入支付请求顶层 `sessionId`。仅当创单 `risk.worldPay.enabled === true` 且下发了 `jwt` 时需要。
+监听 Cardinal 回传，解析 `SessionId`，写入支付请求顶层 `sessionId`。仅当创单 `risk.wp.enabled === true` 且下发了 `jwt` 时需要。
 
 ---
 

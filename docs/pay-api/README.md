@@ -144,11 +144,11 @@ SDK 固定使用 `callbackIntents: ['PAYMENT_AUTHORIZATION']`，并注册
 
 **Fingerprint 不在创建订单**：由 SDK 独立采集，经请求头 `fingerprint-id` 传递。
 
-| 块         | 可覆盖字段                            |
-| ---------- | ------------------------------------- |
-| `forter`   | `siteId`                              |
-| `checkout` | `publicKey`、`scriptUrl`、`integrity` |
-| `worldPay` | `jwt`、`bin`、`actionUrl`             |
+| 块       | 可覆盖字段                            |
+| -------- | ------------------------------------- |
+| `forter` | `siteId`                              |
+| `ck`     | `publicKey`、`scriptUrl`、`integrity` |
+| `wp`     | `jwt`、`bin`、`actionUrl`             |
 
 完整示例见 [`create-order.ts`](./create-order.ts)。
 
@@ -196,25 +196,25 @@ SDK 固定使用 `callbackIntents: ['PAYMENT_AUTHORIZATION']`，并注册
   }
   businessParams?: {
     cookie?: string          // Forter
-    checkoutCookie?: string  // Checkout
+    checkoutCookie?: string  // ck
     dob?: string             // 可选扩展
   }
-  sessionId?: string         // WorldPay
+  sessionId?: string         // wp
   poaParams?: {              // 有账单时由账单映射
     address?, city?, state?, postcode?, country?
   }
 }
 ```
 
-SDK 从钱包结果映射：`encryptedData` → `customParam`；账单扁平进 `customParam` 与 `poaParams`；`risk.forter/checkout/worldPay` → `businessParams` / `sessionId`。
+SDK 从钱包结果映射：`encryptedData` → `customParam`；账单扁平进 `customParam` 与 `poaParams`；`risk.forter` / `ck` / `wp` 采集结果 → `businessParams` / `sessionId`。
 
 ### 响应 `data` 字段
 
-| 字段                              | 说明            |
-| --------------------------------- | --------------- |
-| `MD` / `JWT` / `action`           | WorldPay 等 3DS |
-| `webUrl`                          | 普通跳转        |
-| `threeDSMethodData` / `methodUrl` | Shift4 方法页   |
+| 字段                              | 说明          |
+| --------------------------------- | ------------- |
+| `MD` / `JWT` / `action`           | 3DS 表单等    |
+| `webUrl`                          | 普通跳转      |
+| `threeDSMethodData` / `methodUrl` | Shift4 方法页 |
 
 有二次动作字段则开页并轮询接口 4；都没有且 `returnCode=0000` 则直接成功。
 
@@ -244,6 +244,6 @@ SDK 从钱包结果映射：`encryptedData` → `customParam`；账单扁平进 
 
 ## 7. 备注
 
-- `environment`（创单响应）：决定 Google Pay `PaymentsClient.environment`；可从顶层或 `paymentScript.environment` 提升。与 `RampPay.init({ environment })` **无关**——后者主要用于内置 API 根域名与 Checkout Risk 沙盒选择。`merchantId` / `merchantName` / `gateway` / `gatewayMerchantId` **只使用创单 `paymentScript`，SDK 不补默认值**。
+- `environment`（创单响应）：决定 Google Pay `PaymentsClient.environment`；可从顶层或 `paymentScript.environment` 提升。与 `RampPay.init({ environment })` **无关**——后者主要用于内置 API 根域名与 ck Risk 沙盒选择。`merchantId` / `merchantName` / `gateway` / `gatewayMerchantId` **只使用创单 `paymentScript`，SDK 不补默认值**。
 - 含 `PAYMENT_AUTHORIZATION` 时须提供 `onPaymentAuthorized`，否则 sheet 会失败或卡住。
 - 与历史 payment-hub 字段映射由服务端完成；联调以本目录与 ramp-vue 为准。

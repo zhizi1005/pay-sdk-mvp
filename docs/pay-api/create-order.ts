@@ -96,8 +96,10 @@ export interface RiskWorldPayConfig {
 
 export interface CreateOrderRisk {
   forter?: RiskForterConfig
-  checkout?: RiskCheckoutConfig
-  worldPay?: RiskWorldPayConfig
+  /** 公开块名；配置同 RiskCheckoutConfig */
+  ck?: RiskCheckoutConfig
+  /** 公开块名；配置同 RiskWorldPayConfig */
+  wp?: RiskWorldPayConfig
 }
 
 // ─────────────────────────────────────────────
@@ -305,14 +307,14 @@ export const applePayParamsMinimal: ApplePayParams = {
 export const riskCollectAll: CreateOrderRisk = {
   forter: { enabled: true, siteId: 'b132efccafac' },
   // 生产默认 pk_aldlsnx6lhkjggag4qe2nff4c4h；沙盒默认 pk_sbox_srkhzyxmotpo6vnfhqixvs66kyt（environment=TEST）
-  checkout: { enabled: true, publicKey: 'pk_aldlsnx6lhkjggag4qe2nff4c4h' },
-  worldPay: { enabled: true, jwt: 'your worldPayJwt' }
+  ck: { enabled: true, publicKey: 'pk_aldlsnx6lhkjggag4qe2nff4c4h' },
+  wp: { enabled: true, jwt: 'your worldPayJwt' }
 }
 
 export const riskCollectNone: CreateOrderRisk = {
   forter: { enabled: false },
-  checkout: { enabled: false },
-  worldPay: { enabled: false }
+  ck: { enabled: false },
+  wp: { enabled: false }
 }
 
 export const createOrderRequestExample: CreateOrderRequest = {

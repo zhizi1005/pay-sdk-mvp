@@ -28,7 +28,7 @@ export interface PayCustomParam {
 export interface PayBusinessParams {
   /** Forter ← risk.forter.token */
   cookie?: string
-  /** Checkout Risk ← risk.checkout.deviceSessionId */
+  /** ck 采集结果 → deviceSessionId */
   checkoutCookie?: string
   /** 可选扩展；本阶段 SDK init 不采集 */
   dob?: string
@@ -47,7 +47,7 @@ export interface PayRequest {
   orderNo: string
   customParam: PayCustomParam
   businessParams?: PayBusinessParams
-  /** WorldPay DDC ← risk.worldPay.sessionId */
+  /** wp 采集结果 → sessionId */
   sessionId?: string
   /**
    * 有账单时由账单映射（账单同居住地）；无账单则不传。
@@ -62,7 +62,7 @@ export interface PayRequest {
  * 忽略 Apifox 成功示例中的订单详情字段。
  */
 export interface PayResponse {
-  /** WorldPay 等 3DS */
+  /** 3DS 表单等 */
   MD?: string
   JWT?: string
   /** 3DS 表单提交地址（配合 MD / JWT） */

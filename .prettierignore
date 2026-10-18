@@ -1,4 +1,5 @@
 node_modules/
 dist/
+versions/
 demo/pay-sdk.js
 package-lock.json

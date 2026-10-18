@@ -8,7 +8,7 @@
     "dev": "vite --config vite.demo.config.ts",
     "demo": "npm run build && vite --config vite.demo.config.ts",
     "typecheck": "tsc --noEmit",
-    "build": "tsc --noEmit && vite build && tsc --emitDeclarationOnly",
+    "build": "tsc --noEmit && vite build && tsc --emitDeclarationOnly && node scripts/archive-release.mjs",
     "preview": "npm run build && vite --config vite.demo.config.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

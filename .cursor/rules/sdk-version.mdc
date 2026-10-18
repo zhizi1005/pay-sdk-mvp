@@ -25,7 +25,7 @@ alwaysApply: true
 
 CDN 路径 `ramp-pay/v1/` 只随 **major** 考虑是否新开目录；minor/patch 仍走 `/v1/`。
 
-漏掉 `npm run build` 则 `RampPay.version` 不会变。
+漏掉 `npm run build` 则 `RampPay.version` 不会变。`npm run build` 会把该版本写入 `versions/pay.<version>.min.js`；不升版本再打包会覆盖同一文件。
 
 ## 不要
 

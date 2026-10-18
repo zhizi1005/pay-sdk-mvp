@@ -58,7 +58,9 @@ sequenceDiagram
 
 ## 一句话流程
 
-商户服务端签名**创建订单** → 把响应 `data` 交给 H5 → `RampPay.init({ order })` → `ready()` → **`mount()`（官方按钮）或自定义按钮 + `pay()`** → 用户授权钱包 → SDK 支付 / 查单 → 若有二次动作则 `onAction`（App 用 Bridge 开抽屉）→ `onSuccess` / `onError`。
+商户服务端签名**创建订单** → 把响应 `data` 交给 H5 → `RampPay.init({ order })` → `ready()` → **`mount()`（Apple Pay 官方按钮，或 Google Pay 的 `ramp.alchemypay.org` iframe）** → 用户授权钱包 → SDK 支付 / 查单 → 若有二次动作则 `onAction`（App 用 Bridge 开抽屉）→ `onSuccess` / `onError`。
+
+~~自定义按钮 + `pay()`~~ 不建议继续使用。本版 Apple Pay 的 `pay()` 仍会打开支付 sheet；Google Pay 会把 iframe 放进被点击的按钮。
 
 ## 引用 SDK
 

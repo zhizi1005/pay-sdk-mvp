@@ -8,10 +8,11 @@
 SDK 编排：**商户已创建订单** → 钱包授权 → 支付 →（需要时）查询。  
 `order` 为创建订单**响应**。SDK **不**调创建订单、**不**签名；后续接口带头 `payment-hub-token`。
 
-唤起钱包有两种方式（可只选其一，也可同时提供官方按钮与自定义入口）：
+推荐唤起方式：传 `container`，`ready()` 后 `mount()`。Google Pay 按钮在 `https://ramp.alchemypay.org/payments/google-pay-button.html`。
 
-- **SDK 渲染官方按钮**：传 `container`，`ready()` 后 `mount()`
-- **商户自定义按钮**：可不传 `container`；`ready()` resolve 表示可点击；用户点击时同步调 `pay()`
+~~商户自定义按钮：可不传 `container`；`ready()` resolve 表示可点击；用户点击时同步调 `pay()`。~~
+
+不建议继续使用自定义按钮，后续版本会去掉。本版 Apple Pay 的 `pay()` 仍会打开支付 sheet；Google Pay 会把 iframe 放进被点击的按钮。
 
 ---
 
@@ -19,7 +20,7 @@ SDK 编排：**商户已创建订单** → 钱包授权 → 支付 →（需要�
 
 | 参数              | 类型                     |  必传  | 默认值           | 说明                                                                                                                         |
 | ----------------- | ------------------------ | :----: | ---------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `container`       | `string \| HTMLElement`  |  条件  | —                | 使用 `mount()` 时必传；仅自定义按钮 + `pay()` 时可省略                                                                       |
+| `container`       | `string \| HTMLElement`  |  条件  | —                | 推荐接入必传。~~仅自定义按钮 + `pay()` 时可省略~~                                                                            |
 | `order`           | `object`                 | **是** | —                | 创建订单响应；须含 `orderNo` / `paymentScript` / `token`                                                                     |
 | `environment`     | `'TEST' \| 'PRODUCTION'` |   否   | `'PRODUCTION'`   | 内置 API 根域名（及 Checkout Risk 等）；**不**决定 Google Pay `PaymentsClient.environment`（见创单响应 `order.environment`） |
 | `api`             | `object`                 |   否   | 内置生产域       | 可传 `headers` / `pollIntervalMs` / `pollTimeoutMs`；**无需** appSecret                                                      |
@@ -64,7 +65,9 @@ sdk.ready().then(function () {
 })
 ```
 
-### 示例：商户自定义按钮
+### ~~示例：商户自定义按钮~~
+
+不建议继续使用。后续版本会去掉。本版 Apple Pay 调用 `pay()` 仍会打开支付 sheet；Google Pay 会把 iframe 放进被点击的按钮。
 
 ```js
 const btn = document.getElementById('pay-now')

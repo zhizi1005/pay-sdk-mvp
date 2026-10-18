@@ -10,7 +10,7 @@
 
 | 参数              | 类型                    |  必传  | 默认值           | 说明                                                                          |
 | ----------------- | ----------------------- | :----: | ---------------- | ----------------------------------------------------------------------------- |
-| `container`       | `string \| HTMLElement` |  条件  | —                | 使用 `mount()` 时必传；仅自定义按钮 + `pay()` 时可省略                        |
+| `container`       | `string \| HTMLElement` |  条件  | —                | 推荐接入必传。~~仅自定义按钮 + `pay()` 时可省略~~                             |
 | `order`           | `object`                | **是** | —                | 创建订单响应 `data`；须含 `orderNo` / `paymentScript` / `token`               |
 | `api`             | `object`                |   否   | —                | 可选 `headers`、`pollIntervalMs`（默认 2000）、`pollTimeoutMs`（默认 300000） |
 | `actionMode`      | `'callback' \| 'auto'`  |   否   | `'callback'`     | 二次动作如何打开；**App 请用 `callback`**，见 [SDK.md §7](./SDK.md)           |

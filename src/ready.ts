@@ -1,20 +1,5 @@
 import type { RuntimeWalletConfig } from './types.js'
-import { loadGooglePay, loadApplePay } from './loader.js'
-import { buildGoogleBaseRequest, getPaymentsClient } from './googlePay.js'
-
-async function readyGooglePay(config: RuntimeWalletConfig): Promise<true> {
-  await loadGooglePay()
-  if (!window.google?.payments?.api) {
-    throw new Error('Google Pay JS failed to load')
-  }
-
-  const client = getPaymentsClient(config)
-  const res = await client.isReadyToPay(buildGoogleBaseRequest(config))
-  if (!res?.result) {
-    throw new Error('Google Pay is not available for this user/environment')
-  }
-  return true
-}
+import { loadApplePay } from './loader.js'
 
 async function readyApplePay(): Promise<true> {
   await loadApplePay()
@@ -29,7 +14,6 @@ async function readyApplePay(): Promise<true> {
 }
 
 export function ready(config: RuntimeWalletConfig): Promise<true> {
-  if (config.method === 'googlePay') return readyGooglePay(config)
   if (config.method === 'applePay') return readyApplePay()
   return Promise.reject(new Error(`Unknown payment method: ${config.method}`))
 }

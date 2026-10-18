@@ -447,14 +447,15 @@ export interface PaySdkSettleResult {
 export interface PaySdkInstance {
   /**
    * 规范化订单、预采风控、检查钱包可用。
-   * Promise resolve 表示可挂载官方按钮，或启用商户自定义按钮并调用 `pay()`。
+   * 推荐在 resolve 后调用 `mount()`。Google Pay 有 `container` 时会在此挂上按钮 iframe。
    */
   ready(): Promise<true>
-  /** 在 `container` 中渲染官方 Google/Apple Pay 按钮（须先传 container） */
+  /** 在 `container` 中渲染 Apple Pay 按钮，或确保 Google Pay iframe 已挂上（须先传 container） */
   mount(): this
   /**
-   * 同步唤起钱包 sheet。须在用户点击回调的同步调用栈内调用；调用前须 `await ready()`。
-   * 用于商户自定义按钮（可不传 container / 不调 mount）。
+   * 不建议继续使用。调用前须 `await ready()`。每个实例只 `console.warn` 一次。
+   * 本版 Apple Pay 仍会打开支付 sheet。Google Pay 会把按钮 iframe 放进被点击的 `<button>`，
+   * 这一下不会弹出 Google Pay。
    */
   pay(): void
   /** 商户授权后可让 SDK（或内置实现）打开二次动作页面 */
@@ -490,7 +491,8 @@ interface PaySdkCallbacks {
 
 interface PaySdkBaseConfig extends PaySdkCallbacks {
   /**
-   * 官方按钮挂载节点。使用 `mount()` 时必传；仅用自定义按钮 + `pay()` 时可省略。
+   * 官方按钮挂载节点。推荐接入必传。
+   * 类型仍可选，以便旧的 `pay()` 调用方能走到弃用提醒。
    */
   container?: string | HTMLElement
 }

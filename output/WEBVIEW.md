@@ -275,7 +275,9 @@ sdk.ready().then(function () {
 })
 ```
 
-也可用商户自有按钮：`ready()` 成功后启用按钮，在点击回调里同步调 `sdk.pay()`（可不传 `container` / 不调 `mount`）。按钮与唤起细节见 [SDK.md](./SDK.md)。Bridge / 抽屉流程不变。
+~~也可用商户自有按钮：`ready()` 成功后启用按钮，在点击回调里同步调 `sdk.pay()`（可不传 `container` / 不调 `mount`）。~~
+
+不建议继续使用自定义按钮，后续版本会去掉。本版 Apple Pay 调用 `pay()` 仍会打开支付 sheet；Google Pay 会把按钮 iframe 放进被点击的按钮。推荐传 `container` 并 `mount()`。Google Pay 按钮页是 `https://ramp.alchemypay.org/payments/google-pay-button.html`，WebView 须允许该 iframe。Bridge / 抽屉流程不变。
 
 ### 无 Bridge 时
 

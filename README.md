@@ -96,17 +96,17 @@ cashier WebView to `webUrl` / `s3ds`.
 
 ## API
 
-| Method                 | Description                                                                                                                                    |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `RampPay.init(config)` | Validates `order` (+ optional `api`) and returns an SDK instance. `RampPay.version` matches `package.json` (see [CHANGELOG.md](CHANGELOG.md)). |
-| `sdk.ready()`          | Uses the passed create-order response, starts risk prefetch, loads the selected wallet, checks availability.                                   |
-| `sdk.mount()`          | Renders the wallet button. May be called before `ready()`; preparation then runs automatically.                                                |
-| `sdk.pay()`            | Starts wallet authorize in the user-gesture stack (custom button). Call after `ready()` resolves.                                              |
-| `sdk.openAction()`     | Uses the built-in action opener for a previously received secondary action.                                                                    |
-| `sdk.getLastTraceId()` | Returns the last openapi `traceId` for troubleshooting.                                                                                        |
-| `sdk.getBridgeName()`  | Resolved JS Bridge mount name (`NativeBridge` if `bridgeName` omitted).                                                                        |
-| `sdk.getBridge()`      | `window[sdk.getBridgeName()]`, or `undefined` if the App did not inject it.                                                                    |
-| `sdk.destroy()`        | Clears the button, payment-action iframe and active order polling timer.                                                                       |
+| Method                 | Description                                                                                                                                                               |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RampPay.init(config)` | Validates `order` (+ optional `api`) and returns an SDK instance. `RampPay.version` matches `package.json` (see [CHANGELOG.md](CHANGELOG.md)).                            |
+| `sdk.ready()`          | Uses the passed create-order response, starts risk prefetch, loads the selected wallet, checks availability.                                                              |
+| `sdk.mount()`          | Renders the Apple Pay button, or the Google Pay iframe (`https://ramp.alchemypay.org/payments/google-pay-button.html`), into `container`. May be called before `ready()`. |
+| `sdk.pay()`            | ~~Custom button.~~ Not recommended. This version still opens the Apple Pay sheet. Google Pay inserts the button iframe into the clicked button.                           |
+| `sdk.openAction()`     | Uses the built-in action opener for a previously received secondary action.                                                                                               |
+| `sdk.getLastTraceId()` | Returns the last openapi `traceId` for troubleshooting.                                                                                                                   |
+| `sdk.getBridgeName()`  | Resolved JS Bridge mount name (`NativeBridge` if `bridgeName` omitted).                                                                                                   |
+| `sdk.getBridge()`      | `window[sdk.getBridgeName()]`, or `undefined` if the App did not inject it.                                                                                               |
+| `sdk.destroy()`        | Clears the button, payment-action iframe and active order polling timer.                                                                                                  |
 
 ## Result shape (`onSuccess` / `onComplete`)
 

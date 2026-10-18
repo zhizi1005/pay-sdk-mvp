@@ -30,7 +30,6 @@
 
     <div class="confirm-footer" style="position: static; box-shadow: none; margin-top: 24px">
       <div id="pay-container"></div>
-      <button type="button" id="custom-pay-btn" disabled>加载中</button>
     </div>
 
     <script src="./vendor/vconsole.min.js"></script>
@@ -40,8 +39,6 @@
       ;(function () {
         const statusEl = document.getElementById('status')
         const outputEl = document.getElementById('output')
-        const payBtn = document.getElementById('custom-pay-btn')
-
         /** Hardcoded create-order `data` — Unlimint PAYMENT_GATEWAY + PRODUCTION */
         const order = {
           orderNo: 'demo-gp-unlimint-prod',
@@ -136,26 +133,12 @@
           .ready()
           .then(function () {
             sdk.mount()
-            payBtn.disabled = false
-            payBtn.textContent = '唤起 Google Pay'
-            setStatus('ready · 可点击按钮或官方 GP 按钮')
+            setStatus('ready · 点击 Google Pay 按钮')
           })
           .catch(function (err) {
             setStatus('ready 失败: ' + (err && err.message ? err.message : err), true)
             show(err)
-            payBtn.disabled = true
-            payBtn.textContent = '不可用'
           })
-
-        payBtn.addEventListener('click', function () {
-          if (payBtn.disabled) return
-          try {
-            setStatus('pay()…')
-            sdk.pay()
-          } catch (err) {
-            setStatus('pay() 失败: ' + (err && err.message ? err.message : err), true)
-          }
-        })
       })()
     </script>
   </body>

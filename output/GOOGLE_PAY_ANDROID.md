@@ -11,10 +11,10 @@ H5 / Bridge 接入见 [WEBVIEW.md](./WEBVIEW.md)、[SDK.md](./SDK.md)。
 
 在 **Android App WebView** 里用本 SDK 唤起 Google Pay **Production** 时，Google Pay & Wallet Console 里需要 **同时**具备：
 
-| 审批项                                  | Console 入口（常见名称）                                            | 校验什么                                       | 缺了会怎样                                                 |
-| --------------------------------------- | ------------------------------------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------- |
-| **Website / Domain（Web integration）** | Google Pay API → Integrations → **Integrate with your website**     | 调用 Google Pay 的 **页面域名**（顶层 domain） | 浏览器 / Web 路径不可用；WebView 场景也缺少 Web 侧生产准入 |
-| **Android App（App integration）**      | Google Pay API → Integrations → **Integrate with your Android app** | 宿主 App **包名 + 签名 SHA-256**               | WebView 内易 `OR_BIBED_11` / `13`（只过了域名也不够）      |
+| 审批项                                  | Console 入口（常见名称）                                            | 校验什么                                                                                          | 缺了会怎样                                            |
+| --------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| **Website / Domain（Web integration）** | Google Pay API → Integrations → **Integrate with your website**     | 调用 Google Pay 的完整域名。本 SDK 的按钮页是 `ramp.alchemypay.org`（已过审），不是商户收银台域名 | 按钮页域名未过审时 Production 不可用                  |
+| **Android App（App integration）**      | Google Pay API → Integrations → **Integrate with your Android app** | 宿主 App **包名 + 签名 SHA-256**                                                                  | WebView 内易 `OR_BIBED_11` / `13`（只过了域名也不够） |
 
 **结论：要同时验证 App 和 Domain，缺一不可。** App 审批不能替代域名审批，域名审批也不能替代 App 审批。
 
@@ -83,7 +83,7 @@ Google 未为每个 `OR_BIBED_*` 提供独立深链；定义集中在故障排�
 
 - Google Pay 使用 **Production** 环境（由创单响应 / 平台配置决定）
 - `merchantId` 与 Google Pay Console **生产商户**一致
-- 收银台页所在 **域名** 已在 Console 完成 **Web integration** 并获批
+- Google Pay 按钮跑在已过审的 `https://ramp.alchemypay.org/payments/google-pay-button.html`。收银台和 WebView 须允许这个 iframe（`allow="payment"`）。~~收银台页所在域名须单独完成 Web integration~~ 商户域名不再调用 Google Pay API，因此不必为按钮再审商户域名
 - 宿主 App 已完成 **App integration**（包名 + 正确 SHA-256）并获批
 
 ---

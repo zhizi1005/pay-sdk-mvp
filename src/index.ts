@@ -13,8 +13,9 @@ import type {
 } from './types.js'
 import { ready as detectReady } from './ready.js'
 import { renderButton, resolveContainer } from './button.js'
-import { payWithGoogle } from './googlePay.js'
+import { GOOGLE_PAY_CALLBACK_INTENTS } from './googlePay.js'
 import { payWithApple } from './applePay.js'
+import { clickedCustomButton, CUSTOM_BUTTON_WARN, GooglePayFrame } from './googlePayFrame.js'
 import { normalizeCreateOrderResponse, PayApiClient, PayApiError } from './api.js'
 import { describePayResponse, describeS3ds, PaymentActionView } from './actions.js'
 import { resolveEnvironment, resolvePayApiConfig } from './endpoints.js'
@@ -92,7 +93,7 @@ export {
 export { describePayResponse, describeS3ds } from './actions.js'
 export { getApiEndpoints, resolvePayApiConfig, resolveEnvironment } from './endpoints.js'
 export { buildAlchemyPayRequest } from './normalize.js'
-export { GOOGLE_PAY_CALLBACK_INTENTS } from './googlePay.js'
+export { GOOGLE_PAY_CALLBACK_INTENTS }
 export { DEFAULT_BRIDGE_NAME, getNativeBridge, normalizeBridgeName } from './bridge.js'
 
 function validateConfig(config: PaySdkConfig): void {
@@ -233,6 +234,9 @@ class PaySdk implements PaySdkInstance {
     generation: number
   } | null = null
   private forceCheckInFlight = false
+  private googleFrame: GooglePayFrame | null = null
+  private googleFrameFromReady = false
+  private payWarned = false
 
   constructor(config: PaySdkConfig) {
     this.config = config
@@ -292,7 +296,34 @@ class PaySdk implements PaySdkInstance {
       )
       this.bindSecondaryReturnHook()
     }
-    return detectReady(this.runtimeConfig)
+    return this.finishWalletReady()
+  }
+
+  private async finishWalletReady(): Promise<true> {
+    const config = this.runtimeConfig
+    if (!config) throw new Error('Pay SDK is not ready')
+    if (config.method !== 'googlePay') return detectReady(config)
+    if (!config.container) return true
+    try {
+      await this.ensureGoogleFrame().attach(resolveContainer(config.container))
+      this.googleFrameFromReady = true
+      return true
+    } catch (error) {
+      this.googleFrameFromReady = false
+      throw error
+    }
+  }
+
+  private ensureGoogleFrame(): GooglePayFrame {
+    if (!this.runtimeConfig) throw new Error('Pay SDK is not ready')
+    if (!this.googleFrame) this.googleFrame = new GooglePayFrame(this.runtimeConfig)
+    return this.googleFrame
+  }
+
+  private warnCustomButton(): void {
+    if (this.payWarned) return
+    this.payWarned = true
+    console.warn(CUSTOM_BUTTON_WARN)
   }
 
   /**
@@ -307,24 +338,56 @@ class PaySdk implements PaySdkInstance {
     if (this.destroyed) {
       throw new Error('Pay SDK has been destroyed')
     }
-    if (config.method === 'googlePay') {
-      void payWithGoogle(config)
+    this.warnCustomButton()
+    if (config.method === 'applePay') {
+      payWithApple(config)
       return
     }
-    payWithApple(config)
+    if (this.googleFrame?.isAttached()) return
+    const button = clickedCustomButton()
+    if (!button) {
+      this.config.onError?.(
+        new Error(
+          'Pass container and call mount() to show Google Pay. The clicked button was not found.'
+        )
+      )
+      return
+    }
+    button.replaceChildren()
+    void this.ensureGoogleFrame()
+      .attach(button)
+      .catch((error) => {
+        if (!this.destroyed) this.config.onError?.(toError(error))
+      })
   }
 
   mount(): this {
     if (!this.config.container) {
-      throw new Error(
-        'config.container is required for mount(); omit mount and call pay() for a custom button'
-      )
+      throw new Error('config.container is required for mount()')
+    }
+    const afterReady = () => {
+      if (this.destroyed) return
+      if (this.runtimeConfig?.method === 'googlePay') {
+        if (this.googleFrameFromReady) {
+          this.googleFrameFromReady = false
+          return
+        }
+        const container = this.runtimeConfig.container
+        if (!container) return
+        void this.ensureGoogleFrame()
+          .attach(resolveContainer(container))
+          .catch((error) => {
+            if (!this.destroyed) this.config.onError?.(toError(error))
+          })
+        return
+      }
+      this.render()
     }
     if (this.runtimeConfig) {
-      this.render()
+      afterReady()
     } else {
       void this.ready()
-        .then(() => this.render())
+        .then(() => afterReady())
         .catch((error) => this.config.onError?.(toError(error)))
     }
     return this
@@ -366,7 +429,10 @@ class PaySdk implements PaySdkInstance {
 
   private render(): void {
     if (this.destroyed || !this.runtimeConfig || !this.runtimeConfig.container) return
-    this._button = renderButton(this.runtimeConfig, () => this.pay())
+    const config = this.runtimeConfig
+    this._button = renderButton(config, () => {
+      if (config.method === 'applePay') payWithApple(config)
+    })
   }
 
   /**
@@ -677,6 +743,8 @@ class PaySdk implements PaySdkInstance {
     this.earlyPayPromise = null
     this._button?.remove()
     this._button = null
+    this.googleFrame?.destroy()
+    this.googleFrame = null
     if (this.runtimeConfig?.container) {
       resolveContainer(this.runtimeConfig.container).replaceChildren()
     }

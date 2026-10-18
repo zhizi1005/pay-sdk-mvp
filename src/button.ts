@@ -1,5 +1,4 @@
 import type { RuntimeWalletConfig } from './types.js'
-import { createGoogleButton } from './googlePay.js'
 
 const APPLE_BUTTON_STYLE_ID = 'pay-sdk-apple-button-style'
 
@@ -43,25 +42,14 @@ function renderAppleButton(
   return button
 }
 
-function renderGoogleButton(
-  el: HTMLElement,
-  config: RuntimeWalletConfig,
-  onClick: () => void
-): HTMLElement {
-  const button = createGoogleButton(config, onClick)
-  el.appendChild(button)
-  return button
-}
-
-// Renders the official wallet button into the container and returns the node.
+// Renders the official Apple Pay button into the container and returns the node.
 export function renderButton(config: RuntimeWalletConfig, onClick: () => void): HTMLElement {
   if (!config.container) {
     throw new Error('config.container is required to render the official wallet button')
   }
   const el = resolveContainer(config.container)
-  el.innerHTML = ''
+  el.replaceChildren()
 
-  if (config.method === 'googlePay') return renderGoogleButton(el, config, onClick)
   if (config.method === 'applePay') return renderAppleButton(el, config, onClick)
   throw new Error(`Unknown payment method: ${config.method}`)
 }
